@@ -12,8 +12,8 @@
 
 - Next.js is pinned to major version 14 (`create-next-app@14`) — Next 15+ changed dynamic route `params` to an async `Promise`, which would break every page/route handler in this plan that destructures `{ params }` synchronously.
 - No login/auth system — single private URL (per spec's Access decision).
-- All external API calls (Supabase writes, Claude, Walmart, recipe-URL fetch) happen server-side in `app/api/**/route.ts` — API keys never shipped to the browser.
-- Walmart product search is **optional and gated**: if `WALMART_API_KEY` is not set, the grocery list still works via manual entry (per spec's error-handling: manual entry must never be blocked by an external API failure).
+- All external API calls (Supabase writes, Claude, recipe-URL fetch) happen server-side in `app/api/**/route.ts` — API keys never shipped to the browser.
+- Walmart "add to cart" uses a verified, unauthenticated deep link (`https://www.walmart.com/sc/cart/addToCart?items=...`) built from item IDs extracted out of pasted Walmart product URLs — confirmed working against a real account on 2026-07-29, requires no API key, no affiliate approval, and involves no external call at all (pure URL construction, opened client-side). Manual grocery-list entry always works regardless of whether an item has a linked Walmart URL.
 - Testing is lightweight: automated unit tests only for the missing-ingredients calculation and the recipe URL parser; everything else is verified manually in the browser (per spec's Testing Approach).
 - Mobile-first layout (primary user is on phone only).
 
@@ -155,8 +155,9 @@ Create `.env.local.example`:
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 ANTHROPIC_API_KEY=
-WALMART_API_KEY=
 ```
+
+(No Walmart env var is needed — the "add to cart" feature in Task 9 works via URL construction only, no API key.)
 
 Confirm `.gitignore` includes `.env*.local` and `node_modules` (create-next-app adds these by default — verify, don't duplicate if present).
 
@@ -222,6 +223,7 @@ create table grocery_list (
   item_name text not null,
   quantity numeric,
   source text not null check (source in ('planned', 'manual')),
+  walmart_item_id text,
   added_at timestamptz not null default now()
 );
 ```
@@ -237,7 +239,7 @@ Do not proceed to Step 3 until the user confirms the schema has been applied and
 
 - [ ] **Step 3: Create `.env.local` with real values**
 
-Create `.env.local` (this file is gitignored, never committed) with the `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` values from Step 2, plus placeholders for `ANTHROPIC_API_KEY` and `WALMART_API_KEY` to be filled in later tasks.
+Create `.env.local` (this file is gitignored, never committed) with the `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` values from Step 2, plus a placeholder for `ANTHROPIC_API_KEY` to be filled in during Task 10.
 
 - [ ] **Step 4: Define shared types**
 
@@ -283,6 +285,7 @@ export interface GroceryListItem {
   item_name: string;
   quantity: number | null;
   source: "planned" | "manual";
+  walmart_item_id: string | null;
   added_at: string;
 }
 ```
@@ -353,7 +356,7 @@ Run:
 npx vercel env add SUPABASE_URL production
 npx vercel env add SUPABASE_SERVICE_ROLE_KEY production
 ```
-Paste the same values from `.env.local` when prompted. (Repeat for `ANTHROPIC_API_KEY` and `WALMART_API_KEY` once those exist, in later tasks.)
+Paste the same values from `.env.local` when prompted. (Repeat for `ANTHROPIC_API_KEY` once it exists, in Task 10 — no other env vars are needed.)
 
 - [ ] **Step 5: Deploy and verify**
 
@@ -905,21 +908,90 @@ git commit -m "Add recipe import from URL with JSON-LD parsing and manual fallba
 ## Task 6: Grocery List
 
 **Files:**
+- Create: `lib/walmart.ts`
 - Create: `app/api/grocery-list/route.ts`
 - Create: `app/api/grocery-list/[id]/route.ts`
 - Create: `app/api/grocery-list/complete/route.ts`
 - Create: `app/grocery-list/page.tsx`
+- Test: `__tests__/walmart.test.ts`
 
 **Interfaces:**
 - Consumes: `GroceryListItem`, `PurchaseItem` from `lib/types.ts`.
-- Produces: `GET /api/grocery-list` → `GroceryListItem[]`; `POST /api/grocery-list` (body: `{item_name, quantity, source}`) → created item; `DELETE /api/grocery-list/:id`; `POST /api/grocery-list/complete` → moves all current items into a new `purchases` row and clears `grocery_list`, returns the created `Purchase`. Task 7 (History) reads from `purchases`. Task 8 (planner) writes rows into `grocery_list` with `source: "planned"`.
+- Produces: `extractWalmartItemId(url: string): string | null` in `lib/walmart.ts` — pulls the numeric item ID out of a Walmart product page URL (e.g. `walmart.com/ip/.../10450115` → `"10450115"`), returns `null` for anything that isn't a recognizable Walmart product URL. Task 9 extends this same file with `buildWalmartCartUrl`.
+- Produces: `GET /api/grocery-list` → `GroceryListItem[]`; `POST /api/grocery-list` (body: `{item_name, quantity, source, walmart_url?}`) → created item, with `walmart_item_id` set if `walmart_url` was a recognizable product link; `DELETE /api/grocery-list/:id`; `POST /api/grocery-list/complete` → moves all current items into a new `purchases` row and clears `grocery_list`, returns the created `Purchase`. Task 7 (History) reads from `purchases`. Task 8 (planner) writes rows into `grocery_list` with `source: "planned"`.
 
-- [ ] **Step 1: List + add-item API route**
+- [ ] **Step 1: Write the failing test for the item-ID extractor**
+
+Create `__tests__/walmart.test.ts`:
+```typescript
+import { describe, it, expect } from "vitest";
+import { extractWalmartItemId } from "@/lib/walmart";
+
+describe("extractWalmartItemId", () => {
+  it("extracts the numeric ID from a standard product URL", () => {
+    expect(
+      extractWalmartItemId(
+        "https://www.walmart.com/ip/Great-Value-2-Reduced-Fat-Milk-Gallon-Refrigerated/10450115"
+      )
+    ).toBe("10450115");
+  });
+
+  it("extracts the ID when the URL has query parameters", () => {
+    expect(
+      extractWalmartItemId(
+        "https://www.walmart.com/ip/Great-Value-Large-White-Eggs-12-Count/145051970?athAsset=abc"
+      )
+    ).toBe("145051970");
+  });
+
+  it("returns null for a non-Walmart URL", () => {
+    expect(extractWalmartItemId("https://www.target.com/p/milk/12345")).toBeNull();
+  });
+
+  it("returns null for a Walmart URL with no /ip/ product path", () => {
+    expect(extractWalmartItemId("https://www.walmart.com/search?q=milk")).toBeNull();
+  });
+
+  it("returns null instead of throwing on a malformed string", () => {
+    expect(extractWalmartItemId("not a url")).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npm test`
+Expected: FAIL — `lib/walmart.ts` does not exist yet.
+
+- [ ] **Step 3: Implement the item-ID extractor**
+
+Create `lib/walmart.ts`:
+```typescript
+export function extractWalmartItemId(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (!parsed.hostname.endsWith("walmart.com")) return null;
+  const match = parsed.pathname.match(/\/ip\/[^/]+\/(\d+)/);
+  return match ? match[1] : null;
+}
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npm test`
+Expected: PASS (all 5 walmart tests, plus everything from earlier tasks)
+
+- [ ] **Step 5: List + add-item API route**
 
 Create `app/api/grocery-list/route.ts`:
 ```typescript
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/lib/supabase";
+import { extractWalmartItemId } from "@/lib/walmart";
 
 export async function GET() {
   const supabase = getSupabaseClient();
@@ -932,14 +1004,15 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { item_name, quantity, source } = await req.json();
+  const { item_name, quantity, source, walmart_url } = await req.json();
   if (!item_name) {
     return NextResponse.json({ error: "item_name is required" }, { status: 400 });
   }
+  const walmart_item_id = walmart_url ? extractWalmartItemId(walmart_url) : null;
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("grocery_list")
-    .insert({ item_name, quantity: quantity ?? null, source: source ?? "manual" })
+    .insert({ item_name, quantity: quantity ?? null, source: source ?? "manual", walmart_item_id })
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -947,7 +1020,7 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-- [ ] **Step 2: Delete-item API route**
+- [ ] **Step 6: Delete-item API route**
 
 Create `app/api/grocery-list/[id]/route.ts`:
 ```typescript
@@ -962,7 +1035,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
 }
 ```
 
-- [ ] **Step 3: Complete-list API route**
+- [ ] **Step 7: Complete-list API route**
 
 Create `app/api/grocery-list/complete/route.ts`:
 ```typescript
@@ -995,7 +1068,7 @@ export async function POST() {
 }
 ```
 
-- [ ] **Step 4: Grocery list page**
+- [ ] **Step 8: Grocery list page**
 
 Create `app/grocery-list/page.tsx`:
 ```tsx
@@ -1007,6 +1080,7 @@ import type { GroceryListItem } from "@/lib/types";
 export default function GroceryListPage() {
   const [items, setItems] = useState<GroceryListItem[]>([]);
   const [newItem, setNewItem] = useState("");
+  const [newItemLink, setNewItemLink] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function refresh() {
@@ -1023,9 +1097,14 @@ export default function GroceryListPage() {
     await fetch("/api/grocery-list", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item_name: newItem, source: "manual" }),
+      body: JSON.stringify({
+        item_name: newItem,
+        source: "manual",
+        walmart_url: newItemLink.trim() || undefined,
+      }),
     });
     setNewItem("");
+    setNewItemLink("");
     refresh();
   }
 
@@ -1052,14 +1131,20 @@ export default function GroceryListPage() {
     <main className="p-4">
       <h1 className="text-xl font-bold mb-4">Grocery List</h1>
 
-      <form onSubmit={handleAdd} className="flex gap-2 mb-4">
+      <form onSubmit={handleAdd} className="space-y-2 mb-4">
         <input
-          className="flex-1 border rounded p-2"
+          className="w-full border rounded p-2"
           placeholder="Add an item"
           value={newItem}
           onChange={(e) => setNewItem(e.target.value)}
         />
-        <button type="submit" className="bg-gray-800 text-white rounded px-3">Add</button>
+        <input
+          className="w-full border rounded p-2 text-sm"
+          placeholder="Walmart product link (optional)"
+          value={newItemLink}
+          onChange={(e) => setNewItemLink(e.target.value)}
+        />
+        <button type="submit" className="w-full bg-gray-800 text-white rounded p-2">Add</button>
       </form>
 
       {planned.length > 0 && (
@@ -1098,22 +1183,25 @@ export default function GroceryListPage() {
 function ListRow({ item, onRemove }: { item: GroceryListItem; onRemove: (id: string) => void }) {
   return (
     <li className="flex justify-between items-center border-b py-1">
-      <span>{item.item_name}{item.quantity ? ` (${item.quantity})` : ""}</span>
+      <span>
+        {item.item_name}{item.quantity ? ` (${item.quantity})` : ""}
+        {item.walmart_item_id && <span className="text-xs text-green-700 ml-1">(linked)</span>}
+      </span>
       <button onClick={() => onRemove(item.id)} className="text-red-600 text-sm">Remove</button>
     </li>
   );
 }
 ```
 
-- [ ] **Step 5: Manual verification**
+- [ ] **Step 9: Manual verification**
 
-Run `npm run dev`, open Grocery List, add a couple of manual items, remove one, then click Complete List and confirm the list clears and no error shows. Confirm clicking Complete List on an empty list shows the "Grocery list is empty" error instead of crashing.
+Run `npm run dev`, open Grocery List, add a manual item with no link, then add another item pasting in a real Walmart product URL (e.g. `https://www.walmart.com/ip/Great-Value-2-Reduced-Fat-Milk-Gallon-Refrigerated/10450115`) and confirm it shows the "(linked)" tag. Remove one item, then click Complete List and confirm the list clears and no error shows. Confirm clicking Complete List on an empty list shows the "Grocery list is empty" error instead of crashing.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add app/api/grocery-list app/grocery-list
-git commit -m "Add grocery list with manual items and complete-to-history flow"
+git add lib/walmart.ts __tests__/walmart.test.ts app/api/grocery-list app/grocery-list
+git commit -m "Add grocery list with manual items, Walmart link capture, and complete-to-history flow"
 ```
 
 ---
@@ -1486,164 +1574,112 @@ git commit -m "Add weekly planner with auto missing-ingredients to grocery list"
 
 ---
 
-## Task 9: Walmart Product Search (Optional, Gated)
+## Task 9: Walmart Add-to-Cart Deep Link
 
 **Files:**
-- Create: `lib/walmart.ts`
-- Create: `app/api/walmart-search/route.ts`
+- Modify: `lib/walmart.ts`
 - Modify: `app/grocery-list/page.tsx`
+- Modify: `__tests__/walmart.test.ts`
 
 **Interfaces:**
-- Produces: `searchWalmartProducts(query: string): Promise<{name: string; price: number; image: string}[]>` in `lib/walmart.ts` — throws a clearly-typed `WalmartNotConfiguredError` when `WALMART_API_KEY` is unset, so the API route can distinguish "not set up yet" from "the request failed."
-- Modifies: the grocery-list page's add-item form to include an optional search box above the existing manual input from Task 6 — manual entry keeps working unchanged either way.
+- Consumes: `extractWalmartItemId` and the `lib/walmart.ts` module from Task 6; `GroceryListItem` from `lib/types.ts`.
+- Produces: `buildWalmartCartUrl(items: {walmart_item_id: string; quantity?: number | null}[]): string` in `lib/walmart.ts`, building `https://www.walmart.com/sc/cart/addToCart?items=...` — verified against a live Walmart account on 2026-07-29 (opens in the browser, adds items directly to the cart of whoever is logged into walmart.com in that browser, no API key or affiliate approval required).
 
-- [ ] **Step 1: Walmart search library with graceful "not configured" handling**
+- [ ] **Step 1: Write the failing test for the cart-link builder**
 
-Create `lib/walmart.ts`:
+Add to `__tests__/walmart.test.ts` (alongside the existing `extractWalmartItemId` tests):
 ```typescript
-export class WalmartNotConfiguredError extends Error {
-  constructor() {
-    super("Walmart API key is not configured");
-    this.name = "WalmartNotConfiguredError";
-  }
-}
+import { buildWalmartCartUrl } from "@/lib/walmart";
 
-export interface WalmartProduct {
-  name: string;
-  price: number;
-  image: string;
-}
-
-export async function searchWalmartProducts(query: string): Promise<WalmartProduct[]> {
-  const apiKey = process.env.WALMART_API_KEY;
-  if (!apiKey) {
-    throw new WalmartNotConfiguredError();
-  }
-
-  // NOTE: Walmart's affiliate/product-lookup API requires a walmart.io developer
-  // account plus, for most endpoints, an approved affiliate (Impact Radius)
-  // relationship. See docs/superpowers/specs/2026-07-29-grocery-meal-planner-design.md
-  // for context. Fill in the real endpoint/auth scheme once approved — the shape
-  // below matches walmart.io's Product Lookup response format as of the design date.
-  const res = await fetch(
-    `https://developer.api.walmart.com/api-proxy/service/affil/product/v2/search?query=${encodeURIComponent(query)}`,
-    { headers: { "WM_SEC.ACCESS_TOKEN": apiKey } }
-  );
-  if (!res.ok) {
-    throw new Error(`Walmart search failed: ${res.status}`);
-  }
-  const data = await res.json();
-  const items = Array.isArray(data.items) ? data.items : [];
-  return items.map((item: { name: string; salePrice: number; thumbnailImage: string }) => ({
-    name: item.name,
-    price: item.salePrice,
-    image: item.thumbnailImage,
-  }));
-}
-```
-
-- [ ] **Step 2: Walmart search API route**
-
-Create `app/api/walmart-search/route.ts`:
-```typescript
-import { NextRequest, NextResponse } from "next/server";
-import { searchWalmartProducts, WalmartNotConfiguredError } from "@/lib/walmart";
-
-export async function GET(req: NextRequest) {
-  const query = req.nextUrl.searchParams.get("q");
-  if (!query) {
-    return NextResponse.json({ error: "q is required" }, { status: 400 });
-  }
-  try {
-    const results = await searchWalmartProducts(query);
-    return NextResponse.json(results);
-  } catch (err) {
-    if (err instanceof WalmartNotConfiguredError) {
-      return NextResponse.json({ error: "not_configured" }, { status: 501 });
-    }
-    return NextResponse.json({ error: "Could not search Walmart right now" }, { status: 502 });
-  }
-}
-```
-
-- [ ] **Step 3: Add an optional search box to the grocery list page**
-
-Modify `app/grocery-list/page.tsx`: add this state near the existing `newItem`/`error` state:
-```tsx
-const [searchQuery, setSearchQuery] = useState("");
-const [searchResults, setSearchResults] = useState<{ name: string; price: number; image: string }[]>([]);
-const [searchUnavailable, setSearchUnavailable] = useState(false);
-```
-
-Add this handler alongside `handleAdd`:
-```tsx
-async function handleSearch(e: React.FormEvent) {
-  e.preventDefault();
-  if (!searchQuery.trim()) return;
-  const res = await fetch(`/api/walmart-search?q=${encodeURIComponent(searchQuery)}`);
-  if (res.status === 501) {
-    setSearchUnavailable(true);
-    setSearchResults([]);
-    return;
-  }
-  if (!res.ok) {
-    setSearchResults([]);
-    return;
-  }
-  setSearchResults(await res.json());
-}
-
-async function addFromSearch(name: string) {
-  await fetch("/api/grocery-list", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ item_name: name, source: "manual" }),
+describe("buildWalmartCartUrl", () => {
+  it("builds a URL with a single item and no quantity suffix when quantity is 1", () => {
+    const url = buildWalmartCartUrl([{ walmart_item_id: "10450115", quantity: 1 }]);
+    expect(url).toBe("https://www.walmart.com/sc/cart/addToCart?items=10450115");
   });
-  setSearchResults([]);
-  setSearchQuery("");
-  refresh();
+
+  it("builds a URL with multiple items, adding a quantity suffix when quantity > 1", () => {
+    const url = buildWalmartCartUrl([
+      { walmart_item_id: "10450115", quantity: 2 },
+      { walmart_item_id: "145051970", quantity: 1 },
+    ]);
+    expect(url).toBe("https://www.walmart.com/sc/cart/addToCart?items=10450115_2,145051970");
+  });
+
+  it("treats a missing quantity the same as quantity 1", () => {
+    const url = buildWalmartCartUrl([{ walmart_item_id: "10450115" }]);
+    expect(url).toBe("https://www.walmart.com/sc/cart/addToCart?items=10450115");
+  });
+});
+```
+
+(Add the `describe`/`it`/`expect` import names to the existing top-of-file `import { describe, it, expect } from "vitest";` line if not already present — don't duplicate the import statement.)
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npm test`
+Expected: FAIL — `buildWalmartCartUrl` is not exported from `lib/walmart.ts` yet.
+
+- [ ] **Step 3: Implement the cart-link builder**
+
+Modify `lib/walmart.ts`, adding this below `extractWalmartItemId`:
+```typescript
+export interface CartLinkItem {
+  walmart_item_id: string;
+  quantity?: number | null;
+}
+
+export function buildWalmartCartUrl(items: CartLinkItem[]): string {
+  const itemsParam = items
+    .map((item) =>
+      item.quantity && item.quantity > 1 ? `${item.walmart_item_id}_${item.quantity}` : item.walmart_item_id
+    )
+    .join(",");
+  return `https://www.walmart.com/sc/cart/addToCart?items=${itemsParam}`;
 }
 ```
 
-Add this JSX block right after the `<h1>`, before the existing manual-add `<form>`:
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npm test`
+Expected: PASS (all walmart tests, plus everything from earlier tasks)
+
+- [ ] **Step 5: Add the "Send to Walmart" button**
+
+Modify `app/grocery-list/page.tsx`: add this import at the top, alongside the existing `GroceryListItem` type import:
 ```tsx
-{!searchUnavailable && (
-  <form onSubmit={handleSearch} className="flex gap-2 mb-2">
-    <input
-      className="flex-1 border rounded p-2"
-      placeholder="Search Walmart products"
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-    />
-    <button type="submit" className="bg-gray-200 rounded px-3">Search</button>
-  </form>
-)}
-{searchUnavailable && (
-  <p className="text-gray-500 text-sm mb-2">
-    Walmart search isn't connected yet — just type items in below.
-  </p>
-)}
-{searchResults.length > 0 && (
-  <ul className="mb-4 space-y-1">
-    {searchResults.map((p) => (
-      <li key={p.name} className="flex justify-between items-center border-b py-1">
-        <span>{p.name} — ${p.price}</span>
-        <button onClick={() => addFromSearch(p.name)} className="text-blue-600 text-sm">Add</button>
-      </li>
-    ))}
-  </ul>
+import { buildWalmartCartUrl } from "@/lib/walmart";
+```
+
+Add this handler inside `GroceryListPage`, alongside `handleComplete`:
+```tsx
+function handleSendToWalmart() {
+  const linked = items.filter((i) => i.walmart_item_id);
+  if (linked.length === 0) return;
+  const url = buildWalmartCartUrl(
+    linked.map((i) => ({ walmart_item_id: i.walmart_item_id as string, quantity: i.quantity }))
+  );
+  window.open(url, "_blank");
+}
+```
+
+Add this button in the returned JSX, right before the existing "Complete List" button:
+```tsx
+{items.some((i) => i.walmart_item_id) && (
+  <button onClick={handleSendToWalmart} className="w-full bg-yellow-500 text-white rounded p-2 mb-2">
+    Send {items.filter((i) => i.walmart_item_id).length} linked item(s) to Walmart Cart
+  </button>
 )}
 ```
 
-- [ ] **Step 4: Manual verification**
+- [ ] **Step 6: Manual verification**
 
-Run `npm run dev` without `WALMART_API_KEY` set — confirm the search box is replaced by the "isn't connected yet" message and manual add still works. If/when Walmart affiliate access is approved, set `WALMART_API_KEY` in `.env.local` and re-verify the search box appears and returns results (adjust the endpoint/response mapping in `lib/walmart.ts` to match the actual approved API response shape at that time).
+Run `npm run dev`, open Grocery List, add an item pasting in a real Walmart product URL (as in Task 6 Step 9), confirm the "Send to Walmart" button appears with the right count, click it in a browser tab where you're logged into walmart.com, and confirm the item lands in your real Walmart cart (same check already confirmed manually during design). Add a second linked item and confirm the button's count updates and both items arrive in the cart together.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add lib/walmart.ts app/api/walmart-search app/grocery-list/page.tsx
-git commit -m "Add optional Walmart product search, gated on WALMART_API_KEY"
+git add lib/walmart.ts __tests__/walmart.test.ts app/grocery-list/page.tsx
+git commit -m "Add Send to Walmart cart deep link from linked grocery-list items"
 ```
 
 ---

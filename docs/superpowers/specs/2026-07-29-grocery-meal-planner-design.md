@@ -7,20 +7,29 @@ For: Brandon's wife (primary user, phone-only, no login)
 
 A private web app that helps plan weekly meals, tracks the grocery lists built from
 those plans (and any extra items), and suggests meals based on what's been recently
-bought. Product data for the grocery list comes from Walmart's public product search
-API. Alexa voice control is explicitly out of scope for this phase — see "Deferred"
-below.
+bought. Optionally, a list item can be linked to a real Walmart product page, and the
+whole list of linked items can be sent to a real Walmart.com cart in one click. Alexa
+voice control is explicitly out of scope for this phase — see "Deferred" below.
 
 ## Scope Decisions (from clarifying discussion)
 
-- **No real Walmart cart/order integration.** Walmart does not expose a public API
-  for reading a consumer's personal order history or driving their cart/checkout.
-  The app's "cart" and "order history" are entirely internal concepts: you build a
-  list in the app, mark it complete, and it's saved with a date. Actually purchasing
-  (delivery, pickup, or in-store) happens separately and is not automated.
-- **Walmart's product *search* API is used** (free, public, catalog-only) to populate
-  item names/images/prices when adding to the list — legitimate use, no login or
-  scraping involved.
+- **The app's own "cart" and order history are internal concepts.** You build a list
+  in the app, mark it complete, and it's saved with a date — that part is entirely
+  the app's own data, not read from or written to Walmart's systems. Walmart does not
+  expose any public API for reading a consumer's personal order history, so that
+  direction (Walmart → app) is still not possible.
+- **The other direction (app → Walmart cart) *is* possible and has been verified.**
+  Walmart supports an unauthenticated "add to cart" deep link
+  (`https://www.walmart.com/sc/cart/addToCart?items=ITEM_ID,...`) that, when opened
+  in a browser where the shopper is already logged into walmart.com, adds those items
+  straight to their real cart — confirmed working against a live account on
+  2026-07-29. It needs no API key and no Walmart affiliate/developer approval. The
+  app captures a product's numeric Walmart item ID when someone pastes a Walmart
+  product page URL while adding a grocery-list item (the ID is just the number at the
+  end of the product's `/ip/...` URL — no scraping or lookup call involved), and a
+  "Send to Walmart Cart" button builds the deep link from every linked item currently
+  on the list. Items without a linked Walmart URL are unaffected and stay in the list
+  as plain manual entries.
 - **Recipes** can be entered manually or imported by pasting a URL; the app attempts
   to auto-extract ingredients from the page's structured recipe data (schema.org
   Recipe / JSON-LD), falling back to manual paste if a site doesn't support it.
@@ -41,9 +50,11 @@ below.
   auto-deploys. No manual dashboard upload step.
 - **Database:** Supabase (hosted Postgres, free tier).
 - **External calls — all server-side only, API keys never reach the browser:**
-  - Walmart product search API (item lookup: name/image/price)
   - Claude API (meal suggestion generation)
   - Recipe URL scraper (fetches a pasted URL, parses embedded JSON-LD recipe data)
+- **Walmart cart deep link is not an external call at all** — it's pure URL
+  construction from a stored item ID, opened directly in the browser (`window.open`).
+  No key, no server round-trip, nothing to be "gated" on.
 - **Access:** No auth system. Single unlisted private URL.
 
 ## Data Model (Supabase tables)
@@ -53,15 +64,18 @@ below.
 - `recipe_ingredients` — id, recipe_id (fk), ingredient_name, quantity, unit
 - `purchases` — id, completed_at (date), items (jsonb: [{name, quantity}])
 - `weekly_plan` — id, week_start_date, day_of_week, recipe_id (fk, nullable)
-- `grocery_list` — id, item_name, quantity, source ('planned' | 'manual'), added_at
+- `grocery_list` — id, item_name, quantity, source ('planned' | 'manual'),
+  walmart_item_id (nullable), added_at
 
 ## Screens
 
 1. **This Week** (home) — 7-day grid; tap a day to assign a saved recipe; shows
    which ingredients for the week are missing versus recent purchases.
 2. **Grocery List** — current in-progress list, grouped by planned vs. manually
-   added; search Walmart products to add items; "Complete List" saves it to
-   `purchases` with today's date and clears the working list.
+   added; adding an item can optionally include a pasted Walmart product link;
+   "Send to Walmart Cart" opens a deep link that adds every linked item to a real
+   Walmart cart; "Complete List" saves the list to `purchases` with today's date and
+   clears the working list (independent of whether it was sent to Walmart).
 3. **History** — past completed lists, newest first; tap one to see its items.
 4. **Recipes** — browse/search saved recipes; "Add Recipe" (manual form) or
    "Import from URL" field; view/edit a recipe's ingredients.
@@ -71,8 +85,8 @@ below.
 
 ## Error Handling
 
-- Walmart search failure/timeout: show an inline error, allow manual text entry so
-  the list is never blocked.
+- Pasted Walmart link isn't a recognizable product URL: the item is still added to
+  the list as a normal manual entry (no link), never blocks adding the item.
 - Recipe URL import failure (no structured data / scrape blocked): fall back to a
   manual ingredient-paste field for that recipe.
 - Claude suggestion failure/quota: show "no suggestions available right now," rest
@@ -91,6 +105,8 @@ Lightweight, matched to a 2-person household app rather than a team codebase:
   - The "missing ingredients" calculation (weekly plan → grocery list)
   - The recipe URL parser (site structures vary; failures should degrade gracefully,
     not crash)
+  - The Walmart item-ID extractor and cart-link builder (URL parsing edge cases;
+    should return `null`/skip rather than throw on unrecognized input)
 - No test suite for simple CRUD screens (recipe list, history view, etc.) — not
   worth the overhead at this scale.
 
@@ -100,6 +116,3 @@ Lightweight, matched to a 2-person household app rather than a team codebase:
   developer account, a custom Alexa Skill definition, and an AWS Lambda function
   (or a Next.js API route Lambda can call) to write into the same `grocery_list`
   table. Scoped as its own follow-up project once phase 1 is live and stable.
-- **Walmart deep-linking** — pre-filling Walmart's site/app with list items as a
-  convenience when ordering online for delivery/pickup. Nice-to-have, not core,
-  since purchase method varies trip to trip.
