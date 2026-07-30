@@ -1,0 +1,17 @@
+import "./globals.css";
+import NavBar from "./components/NavBar";
+
+export const metadata = {
+  title: "Grocery & Meal Planner",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className="pb-16 max-w-md mx-auto">
+        {children}
+        <NavBar />
+      </body>
+    </html>
+  );
+}
