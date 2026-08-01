@@ -2,17 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a private Next.js web app (recipes, weekly meal planner, grocery list, purchase history, AI meal suggestions) deployed on Vercel from GitHub, backed by Supabase.
+**Goal:** Build a private Next.js web app (recipes, weekly meal planner, grocery list, purchase history, AI meal suggestions) deployed on Vercel from GitHub, backed by Cloudflare D1.
 
-**Architecture:** Single Next.js (App Router, TypeScript) app. UI pages under `app/`, backend logic in `app/api/**/route.ts` handlers that talk to Supabase (server-side only, via service-role key) and to the Claude API. Shared pure logic (missing-ingredient calculation, recipe HTML parsing) lives in `lib/` and is unit-tested directly — no browser or database needed to test that logic. No authentication; the app is reached via a single unlisted URL.
+**Architecture:** Single Next.js (App Router, TypeScript) app. UI pages under `app/`, backend logic in `app/api/**/route.ts` handlers that talk to Cloudflare D1 (server-side only, via Cloudflare API token, over D1's HTTP query API — the app is hosted on Vercel, not Cloudflare Workers, so D1 is reached over HTTP rather than a native binding) and to the Claude API. Shared pure logic (missing-ingredient calculation, recipe HTML parsing) lives in `lib/` and is unit-tested directly — no browser or database needed to test that logic. No authentication; the app is reached via a single unlisted URL.
 
-**Tech Stack:** Next.js 14+ (App Router, TypeScript), Tailwind CSS, Supabase (Postgres) via `@supabase/supabase-js`, Vitest for unit tests, Vercel for hosting/deploy, GitHub for source control.
+**Tech Stack:** Next.js 14+ (App Router, TypeScript), Tailwind CSS, Cloudflare D1 (SQLite) via its HTTP query API, Vitest for unit tests, Vercel for hosting/deploy, GitHub for source control.
 
 ## Global Constraints
 
 - Next.js is pinned to major version 14 (`create-next-app@14`) — Next 15+ changed dynamic route `params` to an async `Promise`, which would break every page/route handler in this plan that destructures `{ params }` synchronously.
 - No login/auth system — single private URL (per spec's Access decision).
-- All external API calls (Supabase writes, Claude, recipe-URL fetch) happen server-side in `app/api/**/route.ts` — API keys never shipped to the browser.
+- All external API calls (D1 writes, Claude, recipe-URL fetch) happen server-side in `app/api/**/route.ts` — API keys never shipped to the browser.
 - Walmart "add to cart" uses a verified, unauthenticated deep link (`https://www.walmart.com/sc/cart/addToCart?items=...`) built from item IDs extracted out of pasted Walmart product URLs — confirmed working against a real account on 2026-07-29, requires no API key, no affiliate approval, and involves no external call at all (pure URL construction, opened client-side). Manual grocery-list entry always works regardless of whether an item has a linked Walmart URL.
 - Testing is lightweight: automated unit tests only for the missing-ingredients calculation and the recipe URL parser; everything else is verified manually in the browser (per spec's Testing Approach).
 - Mobile-first layout (primary user is on phone only).
@@ -152,8 +152,9 @@ export default function HomePage() {
 
 Create `.env.local.example`:
 ```
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
+CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_D1_DATABASE_ID=
+CLOUDFLARE_API_TOKEN=
 ANTHROPIC_API_KEY=
 ```
 
@@ -170,76 +171,78 @@ git commit -m "Scaffold Next.js app with Tailwind, Vitest, and nav layout"
 
 ---
 
-## Task 2: Supabase Schema and Client
+## Task 2: Cloudflare D1 Schema and Client
 
 **Files:**
-- Create: `supabase/schema.sql`
+- Create: `d1/schema.sql`
 - Create: `lib/types.ts`
-- Create: `lib/supabase.ts`
+- Create: `lib/d1.ts`
 
 **Interfaces:**
 - Produces: `lib/types.ts` exporting `Recipe`, `RecipeIngredient`, `PurchaseItem`, `Purchase`, `WeeklyPlanEntry`, `GroceryListItem` — used by every API route task from here on.
-- Produces: `lib/supabase.ts` exporting `getSupabaseClient(): SupabaseClient` — throws if env vars are missing. Used by every API route task from here on.
+- Produces: `lib/d1.ts` exporting `d1Query<T>(sql: string, params?: unknown[]): Promise<T[]>` — runs a SQL statement against D1 over Cloudflare's HTTP query API and returns its result rows; throws if env vars are missing or the query fails. Used by every API route task from here on.
 
 - [ ] **Step 1: Write the schema**
 
-Create `supabase/schema.sql`:
+D1 is SQLite, not Postgres — no `uuid`/`jsonb`/`timestamptz` types or `pgcrypto` extension. IDs are generated in the app (`crypto.randomUUID()`, available globally in the Next.js server runtime) and passed in as `TEXT`; the `items` JSON on `purchases` is stored as a `TEXT` column holding a JSON string, parsed/stringified by the app.
+
+Create `d1/schema.sql`:
 ```sql
-create extension if not exists "pgcrypto";
-
-create table recipes (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  source text not null check (source in ('manual', 'url')),
-  source_url text,
-  instructions text,
-  created_at timestamptz not null default now()
+CREATE TABLE recipes (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('manual', 'url')),
+  source_url TEXT,
+  instructions TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-create table recipe_ingredients (
-  id uuid primary key default gen_random_uuid(),
-  recipe_id uuid not null references recipes(id) on delete cascade,
-  ingredient_name text not null,
-  quantity numeric,
-  unit text
+CREATE TABLE recipe_ingredients (
+  id TEXT PRIMARY KEY,
+  recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  ingredient_name TEXT NOT NULL,
+  quantity REAL,
+  unit TEXT
 );
 
-create table purchases (
-  id uuid primary key default gen_random_uuid(),
-  completed_at date not null default current_date,
-  items jsonb not null
+CREATE TABLE purchases (
+  id TEXT PRIMARY KEY,
+  completed_at TEXT NOT NULL DEFAULT (date('now')),
+  items TEXT NOT NULL
 );
 
-create table weekly_plan (
-  id uuid primary key default gen_random_uuid(),
-  week_start_date date not null,
-  day_of_week int not null check (day_of_week between 0 and 6),
-  recipe_id uuid references recipes(id) on delete set null,
-  unique (week_start_date, day_of_week)
+CREATE TABLE weekly_plan (
+  id TEXT PRIMARY KEY,
+  week_start_date TEXT NOT NULL,
+  day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+  UNIQUE (week_start_date, day_of_week)
 );
 
-create table grocery_list (
-  id uuid primary key default gen_random_uuid(),
-  item_name text not null,
-  quantity numeric,
-  source text not null check (source in ('planned', 'manual')),
-  walmart_item_id text,
-  added_at timestamptz not null default now()
+CREATE TABLE grocery_list (
+  id TEXT PRIMARY KEY,
+  item_name TEXT NOT NULL,
+  quantity REAL,
+  source TEXT NOT NULL CHECK (source IN ('planned', 'manual')),
+  walmart_item_id TEXT,
+  added_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 ```
 
-- [ ] **Step 2: Ask the user to run the schema in Supabase**
+- [ ] **Step 2: Ask the user to create the D1 database and run the schema**
 
-This step needs the user's own Supabase account — ask them to:
-1. Create a free project at supabase.com (if not already done).
-2. Open the SQL editor in the Supabase dashboard, paste in the contents of `supabase/schema.sql`, and run it.
-3. Copy the Project URL and the `service_role` key (Settings → API) and share them so they can go into `.env.local` (not committed to git).
+This step needs the user's own Cloudflare account — ask them to (or do it together, since some of this is CLI):
+1. `npm install -D wrangler` then `npx wrangler login` (opens a browser auth flow tied to their Cloudflare account).
+2. `npx wrangler d1 create grocery-meal-planner` — prints a `database_id`; note it.
+3. `npx wrangler d1 execute grocery-meal-planner --remote --file=./d1/schema.sql` to apply the schema.
+4. Find their Cloudflare **account ID** (shown in the `d1 create` output, or in the dashboard sidebar on any domain overview page).
+5. Create an API token at Cloudflare dashboard → My Profile → API Tokens → Create Token, with **D1 Edit** permission for the account, and copy it.
 
-Do not proceed to Step 3 until the user confirms the schema has been applied and provides the two values (or confirms they've added them directly to `.env.local` themselves).
+Do not proceed to Step 3 until the user confirms the schema has been applied and provides the account ID, database ID, and API token (or confirms they've added them directly to `.env.local` themselves).
 
 - [ ] **Step 3: Create `.env.local` with real values**
 
-Create `.env.local` (this file is gitignored, never committed) with the `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` values from Step 2, plus a placeholder for `ANTHROPIC_API_KEY` to be filled in during Task 10.
+Create `.env.local` (this file is gitignored, never committed) with `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`, and `CLOUDFLARE_API_TOKEN` from Step 2, plus a placeholder for `ANTHROPIC_API_KEY` to be filled in during Task 10.
 
 - [ ] **Step 4: Define shared types**
 
@@ -290,33 +293,52 @@ export interface GroceryListItem {
 }
 ```
 
-- [ ] **Step 5: Create the Supabase client factory**
+- [ ] **Step 5: Create the D1 client**
 
-Run: `npm install @supabase/supabase-js`
-
-Create `lib/supabase.ts`:
+Create `lib/d1.ts`:
 ```typescript
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+interface D1ApiResponse<T> {
+  success: boolean;
+  errors: { message: string }[];
+  result: { results: T[] }[];
+}
 
-let cachedClient: SupabaseClient | null = null;
-
-export function getSupabaseClient(): SupabaseClient {
-  if (cachedClient) return cachedClient;
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Supabase environment variables are not configured");
+export async function d1Query<T = Record<string, unknown>>(
+  sql: string,
+  params: unknown[] = []
+): Promise<T[]> {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const databaseId = process.env.CLOUDFLARE_D1_DATABASE_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  if (!accountId || !databaseId || !apiToken) {
+    throw new Error("Cloudflare D1 environment variables are not configured");
   }
-  cachedClient = createClient(url, key);
-  return cachedClient;
+
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sql, params }),
+    }
+  );
+
+  const json = (await res.json()) as D1ApiResponse<T>;
+  if (!res.ok || !json.success) {
+    throw new Error(`D1 query failed: ${JSON.stringify(json.errors)}`);
+  }
+  return json.result[0]?.results ?? [];
 }
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add supabase/schema.sql lib/types.ts lib/supabase.ts .env.local.example
-git commit -m "Add Supabase schema, shared types, and client factory"
+git add d1/schema.sql lib/types.ts lib/d1.ts .env.local.example
+git commit -m "Add Cloudflare D1 schema, shared types, and query client"
 ```
 
 ---
@@ -353,8 +375,9 @@ Follow the prompts to link to the GitHub repo just created.
 
 Run:
 ```bash
-npx vercel env add SUPABASE_URL production
-npx vercel env add SUPABASE_SERVICE_ROLE_KEY production
+npx vercel env add CLOUDFLARE_ACCOUNT_ID production
+npx vercel env add CLOUDFLARE_D1_DATABASE_ID production
+npx vercel env add CLOUDFLARE_API_TOKEN production
 ```
 Paste the same values from `.env.local` when prompted. (Repeat for `ANTHROPIC_API_KEY` once it exists, in Task 10 — no other env vars are needed.)
 
