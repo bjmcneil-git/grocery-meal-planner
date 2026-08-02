@@ -51,28 +51,24 @@ export default function RecipesPage() {
           </button>
         ))}
       </div>
-      <ul className="space-y-2">
+      <div className="grid grid-cols-2 gap-3">
         {filtered.map((r) => (
-          <li key={r.id}>
-            <Link href={`/recipes/${r.id}`} className="flex items-center gap-3 p-3 border rounded">
-              {r.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={r.image_url}
-                  alt={r.name}
-                  className="w-14 h-14 rounded object-cover flex-shrink-0"
-                />
-              ) : (
-                <div className="w-14 h-14 rounded bg-gray-100 flex-shrink-0" />
-              )}
-              <div>
-                <p>{r.name}</p>
-                {r.cuisine && <p className="text-xs text-gray-500">{r.cuisine}</p>}
-              </div>
-            </Link>
-          </li>
+          <Link key={r.id} href={`/recipes/${r.id}`} className="block">
+            {r.image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={r.image_url}
+                alt={r.name}
+                className="w-full aspect-[3/4] rounded object-cover"
+              />
+            ) : (
+              <div className="w-full aspect-[3/4] rounded bg-gray-100" />
+            )}
+            <p className="mt-1 text-sm font-medium leading-tight">{r.name}</p>
+            {r.cuisine && <p className="text-xs text-gray-500">{r.cuisine}</p>}
+          </Link>
         ))}
-      </ul>
+      </div>
       {recipes.length === 0 && <p className="text-gray-500">No recipes yet.</p>}
       {recipes.length > 0 && filtered.length === 0 && <p className="text-gray-500">No matches.</p>}
     </main>
