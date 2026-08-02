@@ -56,6 +56,16 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
         ))}
       </ul>
       {recipe.instructions && <p className="mb-4 whitespace-pre-wrap">{recipe.instructions}</p>}
+      {recipe.source_url && (
+        <a
+          href={recipe.source_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block mb-4 text-blue-600 text-sm"
+        >
+          View Original Recipe
+        </a>
+      )}
       <div className="flex gap-4">
         <Link href={`/recipes/${recipe.id}/edit`} className="text-blue-600 text-sm">
           Edit Recipe

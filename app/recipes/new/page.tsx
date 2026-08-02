@@ -18,6 +18,7 @@ export default function NewRecipePage() {
   const [cuisine, setCuisine] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [cookTimeMinutes, setCookTimeMinutes] = useState("");
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([
     { ingredient_name: "", quantity: "", unit: "" },
   ]);
@@ -51,6 +52,7 @@ export default function NewRecipePage() {
     // are often an unreliable site-wide default, not specific to the dish.
     if (body.cookTimeMinutes) setCookTimeMinutes(String(body.cookTimeMinutes));
     setImageUrl(body.image ?? null);
+    setSourceUrl(importUrl);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -59,7 +61,8 @@ export default function NewRecipePage() {
     const payload = {
       name,
       instructions,
-      source: "manual",
+      source: sourceUrl ? "url" : "manual",
+      source_url: sourceUrl,
       cuisine: cuisine || null,
       image_url: imageUrl,
       cook_time_minutes: cookTimeMinutes ? Number(cookTimeMinutes) : null,
