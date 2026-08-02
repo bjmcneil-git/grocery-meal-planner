@@ -10,6 +10,12 @@ export async function POST(req: NextRequest) {
   let html: string;
   try {
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (res.status === 403 || res.status === 429) {
+      return NextResponse.json(
+        { error: "This site blocks automatic recipe imports — paste the ingredients manually instead" },
+        { status: 502 }
+      );
+    }
     if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
     html = await res.text();
   } catch {
