@@ -63,9 +63,7 @@ export default function RecipesPage() {
                   className="w-14 h-14 rounded object-cover flex-shrink-0"
                 />
               ) : (
-                <div className="w-14 h-14 rounded bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0">
-                  🍽️
-                </div>
+                <div className="w-14 h-14 rounded bg-gray-100 flex-shrink-0" />
               )}
               <div>
                 <p>{r.name}</p>
