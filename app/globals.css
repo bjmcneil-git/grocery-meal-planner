@@ -5,13 +5,28 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Form fields keep a light background regardless of page theme, so
+   their text must stay dark for contrast even on a dark page. */
+input,
+select,
+textarea {
+  color: #171717;
+  background-color: #ffffff;
 }
 
 @layer utilities {
