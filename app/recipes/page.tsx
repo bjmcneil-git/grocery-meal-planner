@@ -30,7 +30,7 @@ export default function RecipesPage() {
     <main className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">Recipes</h1>
-        <Link href="/recipes/new" className="text-blue-600">+ Add</Link>
+        <Link href="/recipes/new" className="text-pink-600">+ Add</Link>
       </div>
       <input
         className="w-full border rounded p-2 mb-3"
@@ -45,7 +45,7 @@ export default function RecipesPage() {
             type="button"
             onClick={() => setCuisine(c)}
             className={`text-xs px-3 py-1 rounded-full border ${
-              cuisine === c ? "bg-blue-600 text-white border-blue-600" : "text-gray-600"
+              cuisine === c ? "bg-pink-600 text-white border-pink-600" : "text-gray-600"
             }`}
           >
             {c}

@@ -20,7 +20,7 @@ export default function NavBar() {
           key={link.href}
           href={link.href}
           className={`text-xs px-2 py-1 ${
-            pathname === link.href ? "font-bold text-blue-600" : "text-gray-500"
+            pathname === link.href ? "font-bold text-pink-600" : "text-gray-500"
           }`}
         >
           {link.label}

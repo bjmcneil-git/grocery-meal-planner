@@ -44,7 +44,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
 
   return (
     <main className="p-4">
-      <Link href={`/recipes/${params.id}`} className="text-blue-600 text-sm mb-2 inline-block">
+      <Link href={`/recipes/${params.id}`} className="text-pink-600 text-sm mb-2 inline-block">
         &larr; Back to Recipe
       </Link>
       <h1 className="text-xl font-bold mb-4">Edit Recipe</h1>
@@ -68,7 +68,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
           ))}
         </select>
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button type="submit" className="w-full bg-blue-600 text-white rounded p-2">
+        <button type="submit" className="w-full bg-pink-600 text-white rounded p-2">
           Save Changes
         </button>
       </form>

@@ -29,7 +29,7 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
 
   return (
     <main className="p-4">
-      <Link href="/recipes" className="text-blue-600 text-sm mb-2 inline-block">
+      <Link href="/recipes" className="text-pink-600 text-sm mb-2 inline-block">
         &larr; Back to Recipes
       </Link>
       {recipe.image_url && (
@@ -61,13 +61,13 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
           href={recipe.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block mb-4 text-blue-600 text-sm"
+          className="block mb-4 text-pink-600 text-sm"
         >
           View Original Recipe
         </a>
       )}
       <div className="flex gap-4">
-        <Link href={`/recipes/${recipe.id}/edit`} className="text-blue-600 text-sm">
+        <Link href={`/recipes/${recipe.id}/edit`} className="text-pink-600 text-sm">
           Edit Recipe
         </Link>
         <button onClick={handleDelete} className="text-red-600 text-sm">

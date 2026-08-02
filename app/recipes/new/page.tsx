@@ -89,7 +89,7 @@ export default function NewRecipePage() {
 
   return (
     <main className="p-4">
-      <Link href="/recipes" className="text-blue-600 text-sm mb-2 inline-block">
+      <Link href="/recipes" className="text-pink-600 text-sm mb-2 inline-block">
         &larr; Back to Recipes
       </Link>
       <h1 className="text-xl font-bold mb-4">Add Recipe</h1>
@@ -169,7 +169,7 @@ export default function NewRecipePage() {
           ))}
           <button
             type="button"
-            className="text-blue-600 text-sm"
+            className="text-pink-600 text-sm"
             onClick={() =>
               setIngredients((rows) => [...rows, { ingredient_name: "", quantity: "", unit: "" }])
             }
@@ -178,7 +178,7 @@ export default function NewRecipePage() {
           </button>
         </div>
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button type="submit" className="w-full bg-blue-600 text-white rounded p-2">
+        <button type="submit" className="w-full bg-pink-600 text-white rounded p-2">
           Save Recipe
         </button>
       </form>
