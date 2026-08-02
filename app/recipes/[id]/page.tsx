@@ -27,8 +27,17 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
 
   return (
     <main className="p-4">
-      <h1 className="text-xl font-bold mb-2">{recipe.name}</h1>
-      <ul className="list-disc pl-5 mb-4">
+      {recipe.image_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={recipe.image_url}
+          alt={recipe.name}
+          className="w-full h-48 rounded object-cover mb-3"
+        />
+      )}
+      <h1 className="text-xl font-bold">{recipe.name}</h1>
+      {recipe.cuisine && <p className="text-sm text-gray-500 mb-2">{recipe.cuisine}</p>}
+      <ul className="list-disc pl-5 mb-4 mt-2">
         {ingredients.map((ing) => (
           <li key={ing.id}>
             {ing.quantity ?? ""} {ing.unit ?? ""} {ing.ingredient_name}

@@ -4,6 +4,8 @@ CREATE TABLE recipes (
   source TEXT NOT NULL CHECK (source IN ('manual', 'url')),
   source_url TEXT,
   instructions TEXT,
+  cuisine TEXT,
+  image_url TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

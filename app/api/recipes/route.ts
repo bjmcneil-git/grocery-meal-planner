@@ -12,7 +12,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, instructions, source, source_url, ingredients } = body;
+  const { name, instructions, source, source_url, cuisine, image_url, ingredients } = body;
   if (!name || !Array.isArray(ingredients) || ingredients.length === 0) {
     return NextResponse.json(
       { error: "name and at least one ingredient are required" },
@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
 
   const id = randomUUID();
   const [recipe] = await d1Query<Recipe>(
-    `INSERT INTO recipes (id, name, source, source_url, instructions)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO recipes (id, name, source, source_url, instructions, cuisine, image_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      RETURNING *`,
-    [id, name, source ?? "manual", source_url ?? null, instructions ?? null]
+    [id, name, source ?? "manual", source_url ?? null, instructions ?? null, cuisine ?? null, image_url ?? null]
   );
 
   for (const ing of ingredients as { ingredient_name: string; quantity?: number; unit?: string }[]) {

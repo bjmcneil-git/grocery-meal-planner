@@ -4,6 +4,8 @@ export interface Recipe {
   source: "manual" | "url";
   source_url: string | null;
   instructions: string | null;
+  cuisine: string | null;
+  image_url: string | null;
   created_at: string;
 }
 
