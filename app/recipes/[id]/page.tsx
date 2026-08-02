@@ -56,9 +56,14 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
         ))}
       </ul>
       {recipe.instructions && <p className="mb-4 whitespace-pre-wrap">{recipe.instructions}</p>}
-      <button onClick={handleDelete} className="text-red-600 text-sm">
-        Delete Recipe
-      </button>
+      <div className="flex gap-4">
+        <Link href={`/recipes/${recipe.id}/edit`} className="text-blue-600 text-sm">
+          Edit Recipe
+        </Link>
+        <button onClick={handleDelete} className="text-red-600 text-sm">
+          Delete Recipe
+        </button>
+      </div>
     </main>
   );
 }

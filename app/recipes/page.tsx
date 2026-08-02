@@ -54,27 +54,33 @@ export default function RecipesPage() {
       </div>
       <div className="grid grid-cols-2 gap-3">
         {filtered.map((r) => (
-          <Link key={r.id} href={`/recipes/${r.id}`} className="block">
+          <div key={r.id}>
             <div className="relative">
-              {r.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
+              <Link href={`/recipes/${r.id}`} className="block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={r.image_url}
+                  src={r.image_url ?? "/recipe-placeholder.jpg"}
                   alt={r.name}
                   className="w-full aspect-[3/4] rounded object-cover"
                 />
-              ) : (
-                <div className="w-full aspect-[3/4] rounded bg-gray-100" />
-              )}
+              </Link>
               {r.cook_time_minutes != null && (
                 <span className="absolute top-1.5 left-1.5 bg-white/90 text-gray-800 text-xs px-2 py-0.5 rounded-full">
                   {formatCookTime(r.cook_time_minutes)}
                 </span>
               )}
+              <Link
+                href={`/recipes/${r.id}/edit`}
+                className="absolute top-1.5 right-1.5 bg-white/90 text-gray-800 text-xs px-2 py-0.5 rounded-full"
+              >
+                Edit
+              </Link>
             </div>
-            <p className="mt-1 text-sm font-medium leading-tight">{r.name}</p>
-            {r.cuisine && <p className="text-xs text-gray-500">{r.cuisine}</p>}
-          </Link>
+            <Link href={`/recipes/${r.id}`} className="block">
+              <p className="mt-1 text-sm font-medium leading-tight">{r.name}</p>
+              {r.cuisine && <p className="text-xs text-gray-500">{r.cuisine}</p>}
+            </Link>
+          </div>
         ))}
       </div>
       {recipes.length === 0 && <p className="text-gray-500">No recipes yet.</p>}

@@ -47,7 +47,8 @@ export default function NewRecipePage() {
     setIngredients(
       body.ingredients.map((text: string) => ({ ingredient_name: text, quantity: "", unit: "" }))
     );
-    if (body.cuisine) setCuisine(body.cuisine);
+    // Cuisine is left for you to pick manually — source sites' cuisine tags
+    // are often an unreliable site-wide default, not specific to the dish.
     if (body.cookTimeMinutes) setCookTimeMinutes(String(body.cookTimeMinutes));
     setImageUrl(body.image ?? null);
   }
