@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { Recipe, RecipeIngredient } from "@/lib/types";
+import { formatCookTime } from "@/lib/formatCookTime";
 
 export default function RecipeDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -27,6 +29,9 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
 
   return (
     <main className="p-4">
+      <Link href="/recipes" className="text-blue-600 text-sm mb-2 inline-block">
+        &larr; Back to Recipes
+      </Link>
       {recipe.image_url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -36,7 +41,13 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
         />
       )}
       <h1 className="text-xl font-bold">{recipe.name}</h1>
-      {recipe.cuisine && <p className="text-sm text-gray-500 mb-2">{recipe.cuisine}</p>}
+      {(recipe.cuisine || recipe.cook_time_minutes != null) && (
+        <p className="text-sm text-gray-500 mb-2">
+          {[recipe.cuisine, recipe.cook_time_minutes != null ? formatCookTime(recipe.cook_time_minutes) : null]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      )}
       <ul className="list-disc pl-5 mb-4 mt-2">
         {ingredients.map((ing) => (
           <li key={ing.id}>

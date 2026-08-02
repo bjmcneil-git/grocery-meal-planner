@@ -6,6 +6,7 @@ export interface Recipe {
   instructions: string | null;
   cuisine: string | null;
   image_url: string | null;
+  cook_time_minutes: number | null;
   created_at: string;
 }
 

@@ -62,6 +62,17 @@ describe("parseRecipeFromHtml", () => {
     expect(result).toEqual({ name: "Guacamole", ingredients: ["avocado", "lime", "salt"] });
   });
 
+  it("parses JSON-LD containing a literal unescaped newline in a string value", () => {
+    const html = `
+      <script type="application/ld+json">
+      {"@type":"Recipe","name":"Chili","recipeIngredient":["beans","beef"],"description":"Line one
+Line two"}
+      </script>
+    `;
+    const result = parseRecipeFromHtml(html);
+    expect(result).toEqual({ name: "Chili", ingredients: ["beans", "beef"] });
+  });
+
   it("extracts an ImageObject-style image and array-form recipeCuisine", () => {
     const html = `
       <script type="application/ld+json">
@@ -75,5 +86,39 @@ describe("parseRecipeFromHtml", () => {
       cuisine: "Greek",
       image: "https://example.com/moussaka.jpg",
     });
+  });
+
+  it("parses ISO 8601 totalTime into minutes", () => {
+    const html = `
+      <script type="application/ld+json">
+      {"@type":"Recipe","name":"Stew","recipeIngredient":["beef","carrots"],"totalTime":"PT1H20M"}
+      </script>
+    `;
+    const result = parseRecipeFromHtml(html);
+    expect(result).toEqual({
+      name: "Stew",
+      ingredients: ["beef", "carrots"],
+      cookTimeMinutes: 80,
+    });
+  });
+
+  it("parses a minutes-only totalTime", () => {
+    const html = `
+      <script type="application/ld+json">
+      {"@type":"Recipe","name":"Toast","recipeIngredient":["bread"],"totalTime":"PT5M"}
+      </script>
+    `;
+    const result = parseRecipeFromHtml(html);
+    expect(result).toEqual({ name: "Toast", ingredients: ["bread"], cookTimeMinutes: 5 });
+  });
+
+  it("ignores an unparseable totalTime instead of throwing", () => {
+    const html = `
+      <script type="application/ld+json">
+      {"@type":"Recipe","name":"Mystery","recipeIngredient":["?"],"totalTime":"unknown"}
+      </script>
+    `;
+    const result = parseRecipeFromHtml(html);
+    expect(result).toEqual({ name: "Mystery", ingredients: ["?"] });
   });
 });

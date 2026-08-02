@@ -6,6 +6,7 @@ CREATE TABLE recipes (
   instructions TEXT,
   cuisine TEXT,
   image_url TEXT,
+  cook_time_minutes INTEGER,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

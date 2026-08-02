@@ -3,6 +3,7 @@ export interface ParsedRecipe {
   ingredients: string[];
   cuisine?: string;
   image?: string;
+  cookTimeMinutes?: number;
 }
 
 export function parseRecipeFromHtml(html: string): ParsedRecipe | null {
@@ -10,7 +11,12 @@ export function parseRecipeFromHtml(html: string): ParsedRecipe | null {
   let match: RegExpExecArray | null;
   while ((match = scriptRegex.exec(html)) !== null) {
     try {
-      const json = JSON.parse(match[1].trim());
+      // Some sites (commonly WordPress recipe plugins) emit literal control
+      // characters (raw newlines/tabs) inside JSON string values, which is
+      // invalid per strict JSON and makes JSON.parse throw. Stripping them
+      // fixes parsing without affecting the short fields we read.
+      const sanitized = stripControlCharacters(match[1].trim());
+      const json = JSON.parse(sanitized);
       const candidates = Array.isArray(json) ? json : [json];
       for (const candidate of candidates) {
         const recipe = findRecipeNode(candidate);
@@ -21,6 +27,14 @@ export function parseRecipeFromHtml(html: string): ParsedRecipe | null {
     }
   }
   return null;
+}
+
+function stripControlCharacters(text: string): string {
+  let result = "";
+  for (let i = 0; i < text.length; i++) {
+    result += text.charCodeAt(i) >= 32 ? text[i] : " ";
+  }
+  return result;
 }
 
 function findRecipeNode(node: unknown): ParsedRecipe | null {
@@ -48,6 +62,8 @@ function findRecipeNode(node: unknown): ParsedRecipe | null {
       if (cuisine) result.cuisine = cuisine;
       const image = extractImageUrl(obj.image);
       if (image) result.image = image;
+      const cookTimeMinutes = parseIsoDurationToMinutes(obj.totalTime);
+      if (cookTimeMinutes !== undefined) result.cookTimeMinutes = cookTimeMinutes;
       return result;
     }
   }
@@ -58,6 +74,16 @@ function extractCuisine(raw: unknown): string | undefined {
   if (typeof raw === "string") return raw;
   if (Array.isArray(raw) && typeof raw[0] === "string") return raw[0];
   return undefined;
+}
+
+function parseIsoDurationToMinutes(raw: unknown): number | undefined {
+  if (typeof raw !== "string") return undefined;
+  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?$/i.exec(raw.trim());
+  if (!match) return undefined;
+  const hours = match[1] ? parseInt(match[1], 10) : 0;
+  const minutes = match[2] ? parseInt(match[2], 10) : 0;
+  if (hours === 0 && minutes === 0) return undefined;
+  return hours * 60 + minutes;
 }
 
 function extractImageUrl(raw: unknown): string | undefined {

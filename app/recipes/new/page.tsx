@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { CUISINES } from "@/lib/cuisines";
 
 interface IngredientRow {
@@ -16,6 +17,7 @@ export default function NewRecipePage() {
   const [instructions, setInstructions] = useState("");
   const [cuisine, setCuisine] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [cookTimeMinutes, setCookTimeMinutes] = useState("");
   const [ingredients, setIngredients] = useState<IngredientRow[]>([
     { ingredient_name: "", quantity: "", unit: "" },
   ]);
@@ -46,6 +48,7 @@ export default function NewRecipePage() {
       body.ingredients.map((text: string) => ({ ingredient_name: text, quantity: "", unit: "" }))
     );
     if (body.cuisine) setCuisine(body.cuisine);
+    if (body.cookTimeMinutes) setCookTimeMinutes(String(body.cookTimeMinutes));
     setImageUrl(body.image ?? null);
   }
 
@@ -58,6 +61,7 @@ export default function NewRecipePage() {
       source: "manual",
       cuisine: cuisine || null,
       image_url: imageUrl,
+      cook_time_minutes: cookTimeMinutes ? Number(cookTimeMinutes) : null,
       ingredients: ingredients
         .filter((row) => row.ingredient_name.trim() !== "")
         .map((row) => ({
@@ -81,6 +85,9 @@ export default function NewRecipePage() {
 
   return (
     <main className="p-4">
+      <Link href="/recipes" className="text-blue-600 text-sm mb-2 inline-block">
+        &larr; Back to Recipes
+      </Link>
       <h1 className="text-xl font-bold mb-4">Add Recipe</h1>
       <div className="mb-4 p-3 border rounded bg-gray-50">
         <p className="font-medium mb-1">Import from a URL</p>
@@ -104,18 +111,28 @@ export default function NewRecipePage() {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <select
-          className="w-full border rounded p-2"
-          value={cuisine}
-          onChange={(e) => setCuisine(e.target.value)}
-        >
-          <option value="">Cuisine (optional)</option>
-          {CUISINES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        <div className="flex gap-2">
+          <select
+            className="flex-1 border rounded p-2"
+            value={cuisine}
+            onChange={(e) => setCuisine(e.target.value)}
+          >
+            <option value="">Cuisine (optional)</option>
+            {CUISINES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <input
+            className="w-32 border rounded p-2"
+            type="number"
+            min="0"
+            placeholder="Cook time (min)"
+            value={cookTimeMinutes}
+            onChange={(e) => setCookTimeMinutes(e.target.value)}
+          />
+        </div>
         <textarea
           className="w-full border rounded p-2"
           placeholder="Instructions"
