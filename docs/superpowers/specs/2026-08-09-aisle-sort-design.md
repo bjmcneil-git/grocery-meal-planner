@@ -1,8 +1,17 @@
 # Aisle-Sort Grocery List — Design Spec
 
-Date: 2026-08-09
+Date: 2026-08-09 (revised same day, mid-implementation)
 For: Brandon's wife (primary user, phone-only, no login) — same household app as
 [2026-07-29-grocery-meal-planner-design.md](2026-07-29-grocery-meal-planner-design.md)
+
+**Revision note:** this spec originally called for a batched Claude API call
+to auto-match item names to aisles (see git history for that version). Mid-
+implementation, the user clarified they want the app to run at zero ongoing
+cost — the Claude API has no free tier, so that call was removed entirely.
+Matching is now 100% manual: the first time a new item name is added, the
+user picks its aisle once from a dropdown, and that pick is cached forever.
+Everything else in this spec (schema, walk order, screens) is unchanged by
+that revision except where noted below.
 
 ## Purpose
 
@@ -27,15 +36,17 @@ edited through the app itself once entered.
   (paper towels, batteries) do occasionally end up on the list. Only the
   grocery-side aisles have a confirmed walking order right now; the rest are
   left alone for now with no order assigned.
-- **Matching timing:** items are matched to an aisle in a single batched
-  call, triggered by pressing a new "Let's go shopping" button on the Grocery
-  List screen — not as each item is added. Matching only matters right before
-  a shopping trip, so this minimizes API calls versus matching on every add.
-- **Unmatched items:** never block the sort. Any item with no confident match
-  (or matched to a department with no confirmed walk order) is grouped at the
-  bottom of the sorted list under "Unmatched," where the user taps to pick an
-  aisle manually. That pick is cached forever by item name, so it's never
-  asked again.
+- **Matching is manual only, cached forever.** No AI/API call of any kind —
+  the Claude API has no free tier and the user wants this app to cost
+  nothing to run. The first time a given item name appears with no cache
+  entry, it shows up in an "Unmatched" group; the user taps to pick its
+  aisle once, and that pick is cached by item name permanently. Since a
+  household's grocery item names repeat trip to trip, this is a handful of
+  one-time taps total, not a recurring chore.
+- **Unmatched items never block the sort.** Any item with no cache entry
+  (or cached to a department with no confirmed walk order) is grouped at
+  the bottom of the sorted list under "Unmatched," where the user taps to
+  pick an aisle manually.
 - **Reordering:** the confirmed walking order is seeded once via a database
   migration (see Data Model), but the user can also fix it up later in-app
   through a new Edit Aisle Order screen — the store layout confirmed today
@@ -55,11 +66,10 @@ Extends the existing grocery-meal-planner Next.js app and Cloudflare D1
 database (see base spec's Architecture section — unchanged: Vercel
 auto-deploy, server-side-only external calls).
 
-- **New external call:** Claude API (text), server-side only, for batched
-  item-to-aisle matching. Same pattern as the existing meal-suggestion call in
-  the base spec.
-- **No new client-side external calls.** The Edit Aisle Order and Unmatched
-  picker screens are pure CRUD against D1 through the app's own API routes.
+- **No external calls at all.** Matching is manual-only (see Scope
+  Decisions), so this feature makes zero calls to Claude or any other
+  external API — every screen is pure CRUD against D1 through the app's own
+  API routes.
 
 ## Data Model (D1, additive to existing schema.sql)
 
@@ -83,6 +93,12 @@ CREATE TABLE item_aisle_cache (
   lookup or insert, so "Milk" and "milk" share one cache entry. Different
   phrasings of the same product (e.g. "milk" vs "2% milk") are treated as
   distinct items and matched independently — no fuzzy synonym merging.
+- `matched_by`'s `'ai'` value is currently unused by the application (no
+  code path ever writes it, per the manual-only revision above) — the
+  column and its CHECK constraint were kept as-is rather than migrated
+  again, so the schema doesn't need to change if AI matching is ever
+  revisited later. Every row written by this feature has `matched_by =
+  'manual'`.
 - `walk_order` is nullable. Null means "no confirmed position" — those aisles
   never appear in the primary sorted sequence; any item matched to one lands
   in the Unmatched group instead.
@@ -140,14 +156,11 @@ These seed as `aisle_directory` rows with `walk_order = NULL`.
 
 1. **Grocery List (extended)** — adds a "Let's go shopping" button.
    - On press: normalizes every list item's name, looks up
-     `item_aisle_cache`, and for any item not already cached, sends the
-     uncached names plus the full `aisle_directory` (code + categories) to
-     Claude in one batched call. Claude returns, per item, either a matching
-     `aisle_directory_id` or no match. Confident matches are cached
-     (`matched_by = 'ai'`).
+     `item_aisle_cache` for each, and sorts. No API call of any kind —
+     this is a read against D1 followed by an in-memory sort.
    - The list re-renders sorted ascending by `walk_order`. Items whose cached
-     aisle has `walk_order IS NULL`, plus any item with no match at all, are
-     grouped in an "Unmatched" section at the bottom.
+     aisle has `walk_order IS NULL`, plus any item with no cache entry at
+     all, are grouped in an "Unmatched" section at the bottom.
    - Each Unmatched row has a native `<select>` dropdown listing all
      `aisle_directory` entries by code + categories (ordered and unordered
      alike, since a manual pick might legitimately be a non-grocery
@@ -156,8 +169,9 @@ These seed as `aisle_directory` rows with `walk_order = NULL`.
      its sorted position (or leaves it in Unmatched if the picked aisle also
      has a null `walk_order`).
    - Pressing "Let's go shopping" again later (e.g. after adding more items)
-     is idempotent — it only re-matches items not yet in the cache and
-     re-sorts the current list.
+     is idempotent — it re-reads the current cache state and re-sorts the
+     current list; any newly-added item with no cache entry simply appears
+     in Unmatched again until picked.
 2. **Edit Aisle Order (new)** — a flat list of all `aisle_directory` rows in
    two groups: "Route" (sorted by current `walk_order`) and "Unordered"
    (everything else), each row showing its code and categories.
@@ -172,11 +186,11 @@ These seed as `aisle_directory` rows with `walk_order = NULL`.
 
 ## Error Handling
 
-- Claude batch-match call fails or times out: every currently-uncached item
-  falls into Unmatched for manual picking; the rest of the list (already
-  cached from a prior trip) still sorts and displays normally. Matches the
-  existing app's "Claude failure degrades gracefully" pattern from the base
-  spec.
+- Item has no cache entry: it falls into Unmatched for manual picking; the
+  rest of the list (already cached from a prior pick) still sorts and
+  displays normally. There's no external call that can fail here — the
+  only failure mode is a D1 read/write error, which surfaces like any other
+  CRUD failure elsewhere in the app.
 - Directory edited (order changed, or an aisle removed) after items were
   already cached against it: no special handling needed — the cache stores
   `aisle_directory_id`, so edits just change what that aisle's current
@@ -202,6 +216,10 @@ app:
 
 ## Deferred
 
+- **AI-assisted matching** — dropped, not just deferred, per the revision
+  note above (no free tier, user wants zero ongoing cost). Could be
+  revisited if the user's cost tolerance changes; the `matched_by` column
+  already has an unused `'ai'` value reserved for that case.
 - **Product images and price**, whether manual entry or web-image-search
   assisted — separate future spec, unrelated to aisle matching/sort order.
 - **Walk order for non-grocery departments** — left unordered until/unless
