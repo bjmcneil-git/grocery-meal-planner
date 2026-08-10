@@ -966,6 +966,56 @@ git commit -m "Add aisle-sorted view and unmatched picker to Grocery List page"
 
 ---
 
+### Task 8b (NEW): Fix static prerendering on the new GET-only D1 routes
+
+**Why this task exists:** discovered while verifying Task 9 — `npm run build` classifies `/api/aisle-directory` (Task 6) and `/api/grocery-list/shop` (Task 8, revised) as `○ (Static)`, meaning Next.js prerenders their response at build time and serves that same frozen snapshot on every request in production, on Vercel. Every other route in the app (including the pre-existing `/api/grocery-list` and `/api/recipes`, and this feature's own `/api/item-aisle-cache`) is correctly `ƒ (Dynamic)` because they export a non-GET handler alongside GET, which Next.js treats as inherently dynamic. These two new routes are GET-only (aisle-directory also has PUT, but that alone didn't trigger dynamic classification in this Next.js version — confirmed empirically via the build output), so they need an explicit opt-out. Left unfixed, the aisle directory and the "Let's go shopping" sort would both permanently return whatever data existed at the most recent `vercel build`/deploy, ignoring every later change to the grocery list, the aisle directory, or the item cache — silently breaking the entire feature in production while looking correct in local dev (where Next.js doesn't do this prerendering).
+
+**Files:**
+- Modify: `app/api/aisle-directory/route.ts`
+- Modify: `app/api/grocery-list/shop/route.ts`
+
+**Interfaces:** none — this only adds a route-segment config export to two already-complete files; no function signature changes.
+
+- [ ] **Step 1: Add the dynamic-rendering opt-out to both files**
+
+In `app/api/aisle-directory/route.ts`, add this line right after the imports (before `async function listDirectory`):
+
+```typescript
+export const dynamic = "force-dynamic";
+```
+
+In `app/api/grocery-list/shop/route.ts`, add the same line right after the imports (before `export async function GET`):
+
+```typescript
+export const dynamic = "force-dynamic";
+```
+
+- [ ] **Step 2: Verify via a production build**
+
+```bash
+npm run build
+```
+
+Expected: in the route table Next.js prints, both `/api/aisle-directory` and `/api/grocery-list/shop` now show `ƒ (Dynamic)` instead of `○ (Static)` — the same marker already shown for `/api/grocery-list`, `/api/item-aisle-cache`, `/api/recipes`, etc.
+
+- [ ] **Step 3: Run the full test suite and type-check**
+
+```bash
+npm test
+npx tsc --noEmit
+```
+
+Expected: both clean (18/18 tests passing, no type errors) — this change adds no logic, so nothing should regress.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add app/api/aisle-directory/route.ts app/api/grocery-list/shop/route.ts
+git commit -m "Force dynamic rendering on aisle-directory and shop routes"
+```
+
+---
+
 ### Task 10: Edit Aisle Order page
 
 **Files:**
