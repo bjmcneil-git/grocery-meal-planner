@@ -11,6 +11,7 @@ export default function GroceryListPage() {
   const [grouped, setGrouped] = useState<GroupedGroceryList | null>(null);
   const [sorting, setSorting] = useState(false);
   const [aisleOptions, setAisleOptions] = useState<AisleDirectoryEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/grocery-list")
@@ -51,23 +52,41 @@ export default function GroceryListPage() {
 
   async function handleShop() {
     setSorting(true);
-    const res = await fetch("/api/grocery-list/shop");
-    const data: GroupedGroceryList = await res.json();
-    setGrouped(data);
-    if (data.unmatched.length > 0 && aisleOptions.length === 0) {
-      const dirRes = await fetch("/api/aisle-directory");
-      setAisleOptions(await dirRes.json());
+    try {
+      const res = await fetch("/api/grocery-list/shop");
+      if (!res.ok) throw new Error(`Failed to sort list with status ${res.status}`);
+      const data: GroupedGroceryList = await res.json();
+      setGrouped(data);
+      if (aisleOptions.length === 0) {
+        const dirRes = await fetch("/api/aisle-directory");
+        if (!dirRes.ok) {
+          throw new Error(`Failed to load aisle directory with status ${dirRes.status}`);
+        }
+        setAisleOptions(await dirRes.json());
+      }
+      setError(null);
+    } catch {
+      setError("Failed to sort your list. Please try again.");
+    } finally {
+      setSorting(false);
     }
-    setSorting(false);
   }
 
   async function handlePickAisle(name: string, aisleDirectoryId: string) {
-    await fetch("/api/item-aisle-cache", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item_name: name, aisle_directory_id: aisleDirectoryId }),
-    });
-    await handleShop();
+    setSorting(true);
+    try {
+      const res = await fetch("/api/item-aisle-cache", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_name: name, aisle_directory_id: aisleDirectoryId }),
+      });
+      if (!res.ok) throw new Error(`Failed to save aisle pick with status ${res.status}`);
+      await handleShop();
+    } catch {
+      setError("Failed to save the aisle pick. Please try again.");
+    } finally {
+      setSorting(false);
+    }
   }
 
   return (
@@ -94,6 +113,8 @@ export default function GroceryListPage() {
           {sorting ? "Sorting..." : "Let's go shopping"}
         </button>
       )}
+
+      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {loading && <p className="text-gray-500">Loading...</p>}
       {!loading && items.length === 0 && (
@@ -130,6 +151,19 @@ export default function GroceryListPage() {
                 />
                 <span className="flex-1">{item.item_name}</span>
                 <span className="text-xs text-gray-400">{aisle?.code}</span>
+                <select
+                  className="border rounded text-xs p-1"
+                  value={aisle?.id ?? ""}
+                  onChange={(e) => {
+                    if (e.target.value) handlePickAisle(item.item_name, e.target.value);
+                  }}
+                >
+                  {aisleOptions.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.code} — {a.categories}
+                    </option>
+                  ))}
+                </select>
               </li>
             ))}
           </ul>
