@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { normalizeItemName, buildMatchPrompt, parseMatchResponse } from "@/lib/aisleMatcher";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi } from "vitest";
+import { normalizeItemName, buildMatchPrompt, parseMatchResponse, matchItemsToAisles } from "@/lib/aisleMatcher";
 import type { AisleDirectoryEntry } from "@/lib/types";
 
 const directory: AisleDirectoryEntry[] = [
@@ -57,5 +58,58 @@ describe("parseMatchResponse", () => {
     const raw = '{"milk": "aisle-a37"}';
     const result = parseMatchResponse(raw, ["milk", "eggs"], directory);
     expect(result).toEqual({ milk: "aisle-a37", eggs: null });
+  });
+});
+
+describe("matchItemsToAisles", () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.ANTHROPIC_API_KEY;
+
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = "test-key";
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.ANTHROPIC_API_KEY = originalKey;
+  });
+
+  it("returns an empty object immediately for an empty item list", async () => {
+    const result = await matchItemsToAisles([], directory);
+    expect(result).toEqual({});
+  });
+
+  it("calls the Anthropic Messages API with the expected shape and parses the reply", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        content: [{ type: "text", text: '{"milk": "aisle-a37"}' }],
+      }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await matchItemsToAisles(["milk"], directory);
+
+    expect(result).toEqual({ milk: "aisle-a37" });
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.anthropic.com/v1/messages");
+    expect(options.method).toBe("POST");
+    expect(options.headers["x-api-key"]).toBe("test-key");
+    expect(options.headers["anthropic-version"]).toBe("2023-06-01");
+    const body = JSON.parse(options.body);
+    expect(body.model).toBe("claude-haiku-4-5");
+    expect(body.messages[0].content).toContain("milk");
+  });
+
+  it("returns null for every item when the API call fails, instead of throwing", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+    const result = await matchItemsToAisles(["milk", "eggs"], directory);
+    expect(result).toEqual({ milk: null, eggs: null });
+  });
+
+  it("returns null for every item when the network call throws", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("network down")) as unknown as typeof fetch;
+    const result = await matchItemsToAisles(["milk"], directory);
+    expect(result).toEqual({ milk: null });
   });
 });

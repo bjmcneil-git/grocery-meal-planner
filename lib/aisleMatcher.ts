@@ -50,3 +50,43 @@ export function parseMatchResponse(
   }
   return result;
 }
+
+export async function matchItemsToAisles(
+  itemNames: string[],
+  directory: AisleDirectoryEntry[]
+): Promise<Record<string, string | null>> {
+  if (itemNames.length === 0) return {};
+
+  const emptyResult = () => {
+    const empty: Record<string, string | null> = {};
+    for (const name of itemNames) empty[name] = null;
+    return empty;
+  };
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return emptyResult();
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: buildMatchPrompt(itemNames, directory) }],
+      }),
+    });
+
+    if (!res.ok) return emptyResult();
+
+    const json = (await res.json()) as { content?: { type: string; text?: string }[] };
+    const text = json.content?.find((c) => c.type === "text")?.text ?? "";
+    return parseMatchResponse(text, itemNames, directory);
+  } catch {
+    return emptyResult();
+  }
+}
