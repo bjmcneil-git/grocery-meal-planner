@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { GroceryListItem } from "@/lib/types";
+import type { AisleDirectoryEntry, GroceryListItem } from "@/lib/types";
+import type { GroupedGroceryList } from "@/lib/groceryOrder";
 
 export default function GroceryListPage() {
   const [items, setItems] = useState<GroceryListItem[]>([]);
   const [itemName, setItemName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [grouped, setGrouped] = useState<GroupedGroceryList | null>(null);
+  const [sorting, setSorting] = useState(false);
+  const [aisleOptions, setAisleOptions] = useState<AisleDirectoryEntry[]>([]);
 
   useEffect(() => {
     fetch("/api/grocery-list")
@@ -28,12 +32,42 @@ export default function GroceryListPage() {
     });
     const item = await res.json();
     setItems((prev) => [item, ...prev]);
+    setGrouped(null);
     setItemName("");
   }
 
   async function removeItem(id: string) {
     setItems((prev) => prev.filter((i) => i.id !== id));
+    setGrouped((prev) =>
+      prev
+        ? {
+            sorted: prev.sorted.filter((g) => g.item.id !== id),
+            unmatched: prev.unmatched.filter((g) => g.item.id !== id),
+          }
+        : null
+    );
     await fetch(`/api/grocery-list/${id}`, { method: "DELETE" });
+  }
+
+  async function handleShop() {
+    setSorting(true);
+    const res = await fetch("/api/grocery-list/shop");
+    const data: GroupedGroceryList = await res.json();
+    setGrouped(data);
+    if (data.unmatched.length > 0 && aisleOptions.length === 0) {
+      const dirRes = await fetch("/api/aisle-directory");
+      setAisleOptions(await dirRes.json());
+    }
+    setSorting(false);
+  }
+
+  async function handlePickAisle(name: string, aisleDirectoryId: string) {
+    await fetch("/api/item-aisle-cache", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_name: name, aisle_directory_id: aisleDirectoryId }),
+    });
+    await handleShop();
   }
 
   return (
@@ -51,25 +85,90 @@ export default function GroceryListPage() {
         </button>
       </form>
 
+      {!loading && items.length > 0 && (
+        <button
+          onClick={handleShop}
+          disabled={sorting}
+          className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm mb-4 disabled:opacity-50"
+        >
+          {sorting ? "Sorting..." : "Let's go shopping"}
+        </button>
+      )}
+
       {loading && <p className="text-gray-500">Loading...</p>}
       {!loading && items.length === 0 && (
         <p className="text-gray-500">Your list is empty. Add something above.</p>
       )}
-      <ul className="divide-y">
-        {items.map((item) => (
-          <li key={item.id} className="flex items-center gap-3 py-2">
-            <input
-              type="checkbox"
-              className="h-5 w-5 accent-pink-600"
-              onChange={() => removeItem(item.id)}
-            />
-            <span className="flex-1">{item.item_name}</span>
-            {item.quantity != null && (
-              <span className="text-sm text-gray-500">{item.quantity}</span>
-            )}
-          </li>
-        ))}
-      </ul>
+
+      {!loading && items.length > 0 && !grouped && (
+        <ul className="divide-y">
+          {items.map((item) => (
+            <li key={item.id} className="flex items-center gap-3 py-2">
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-pink-600"
+                onChange={() => removeItem(item.id)}
+              />
+              <span className="flex-1">{item.item_name}</span>
+              {item.quantity != null && (
+                <span className="text-sm text-gray-500">{item.quantity}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {grouped && (
+        <div>
+          <ul className="divide-y">
+            {grouped.sorted.map(({ item, aisle }) => (
+              <li key={item.id} className="flex items-center gap-3 py-2">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 accent-pink-600"
+                  onChange={() => removeItem(item.id)}
+                />
+                <span className="flex-1">{item.item_name}</span>
+                <span className="text-xs text-gray-400">{aisle?.code}</span>
+              </li>
+            ))}
+          </ul>
+
+          {grouped.unmatched.length > 0 && (
+            <div className="mt-4">
+              <h2 className="text-sm font-bold text-gray-500 mb-2">Unmatched</h2>
+              <ul className="divide-y">
+                {grouped.unmatched.map(({ item }) => (
+                  <li key={item.id} className="flex items-center gap-3 py-2">
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 accent-pink-600"
+                      onChange={() => removeItem(item.id)}
+                    />
+                    <span className="flex-1">{item.item_name}</span>
+                    <select
+                      className="border rounded text-xs p-1"
+                      defaultValue=""
+                      onChange={(e) => {
+                        if (e.target.value) handlePickAisle(item.item_name, e.target.value);
+                      }}
+                    >
+                      <option value="" disabled>
+                        Pick aisle...
+                      </option>
+                      {aisleOptions.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.code} — {a.categories}
+                        </option>
+                      ))}
+                    </select>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }
