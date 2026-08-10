@@ -8,6 +8,7 @@ export default function AisleOrderPage() {
   const [unordered, setUnordered] = useState<AisleDirectoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/aisle-directory")
@@ -15,6 +16,12 @@ export default function AisleOrderPage() {
       .then((data: AisleDirectoryEntry[]) => {
         setRoute(data.filter((a) => a.walk_order !== null));
         setUnordered(data.filter((a) => a.walk_order === null));
+        setError(null);
+      })
+      .catch(() => {
+        setError("Failed to load aisle order. Please try again.");
+      })
+      .finally(() => {
         setLoading(false);
       });
   }, []);
@@ -49,18 +56,25 @@ export default function AisleOrderPage() {
 
   async function handleSave() {
     setSaving(true);
-    const res = await fetch("/api/aisle-directory", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderedIds: route.map((a) => a.id),
-        unorderedIds: unordered.map((a) => a.id),
-      }),
-    });
-    const data: AisleDirectoryEntry[] = await res.json();
-    setRoute(data.filter((a) => a.walk_order !== null));
-    setUnordered(data.filter((a) => a.walk_order === null));
-    setSaving(false);
+    try {
+      const res = await fetch("/api/aisle-directory", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderedIds: route.map((a) => a.id),
+          unorderedIds: unordered.map((a) => a.id),
+        }),
+      });
+      if (!res.ok) throw new Error(`Save failed with status ${res.status}`);
+      const data: AisleDirectoryEntry[] = await res.json();
+      setRoute(data.filter((a) => a.walk_order !== null));
+      setUnordered(data.filter((a) => a.walk_order === null));
+      setError(null);
+    } catch {
+      setError("Failed to save aisle order. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) return <main className="p-4">Loading...</main>;
@@ -68,6 +82,8 @@ export default function AisleOrderPage() {
   return (
     <main className="p-4 pb-20">
       <h1 className="text-xl font-bold mb-4">Edit Aisle Order</h1>
+
+      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       <h2 className="text-sm font-bold text-gray-500 mb-2">Route</h2>
       <ul className="divide-y mb-6">
