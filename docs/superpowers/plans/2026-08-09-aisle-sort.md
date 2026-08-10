@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a "Let's go shopping" button to the Grocery List screen that sorts the list into the confirmed real-world walking order of the Shreveport Mansfield Rd Supercenter, using a Claude API call to match item names to aisles.
+**Goal:** Add a "Let's go shopping" button to the Grocery List screen that sorts the list into the confirmed real-world walking order of the Shreveport Mansfield Rd Supercenter, matching item names to aisles via a manual one-time pick per item name, cached forever after.
 
-**Architecture:** Two new D1 tables (`aisle_directory`, `item_aisle_cache`) seeded with the confirmed store data via migration. Three new/extended Next.js API routes wire a pure-function matching/sorting core (in `lib/`) to D1 and to a raw `fetch` call against the Anthropic Messages API. Two UI changes: the Grocery List page gains sort/unmatched-picker behavior, and a new Edit Aisle Order page lets the walking order be adjusted later.
+**Architecture:** Two new D1 tables (`aisle_directory`, `item_aisle_cache`) seeded with the confirmed store data via migration. Three new/extended Next.js API routes wire a pure-function sorting core (in `lib/`) to D1 — no external API calls anywhere in this feature. Two UI changes: the Grocery List page gains sort/unmatched-picker behavior, and a new Edit Aisle Order page lets the walking order be adjusted later.
 
-**Tech Stack:** Next.js 14 App Router, Cloudflare D1 (via `lib/d1.ts`'s `d1Query` helper — no ORM), TypeScript, Tailwind CSS, Vitest, raw `fetch` against the Anthropic Messages API (no SDK dependency, matching the codebase's existing zero-dependency style).
+**Tech Stack:** Next.js 14 App Router, Cloudflare D1 (via `lib/d1.ts`'s `d1Query` helper — no ORM), TypeScript, Tailwind CSS, Vitest.
+
+**Revision note (2026-08-09, mid-implementation):** this plan originally had Tasks 3–4 and 8 build a batched Claude API call for automatic item-to-aisle matching. The user clarified partway through execution that they want the app to run at zero ongoing cost, and the Claude API has no free tier — so that call was removed. Task 3 has been trimmed to just the `normalizeItemName` helper it still needs; Task 4 has been repurposed into a cleanup task that deletes the now-unused Claude-specific code Tasks 3/4 originally added; Task 8 has been rewritten as a plain cache-lookup-and-sort route with no external call. Tasks 1, 2, 5, 6, 7, 9, 10 are unaffected (Task 9's fetch call changes from POST to GET for the now-side-effect-free shop endpoint, noted in that task).
 
 ## Global Constraints
 
@@ -16,7 +18,7 @@
 - Path alias `@/` maps to the repo root (`tsconfig.json`, `vitest.config.ts`).
 - Tests live in `__tests__/*.test.ts`, run via `npm test` (Vitest). Only pure-function logic gets automated tests, per the base spec's testing philosophy — no tests for simple CRUD routes/screens.
 - UI is phone-only, Tailwind, pink-600 accent (`bg-pink-600` / `text-pink-600`), `"use client"` function components using `useState`/`useEffect` + `fetch` (see `app/grocery-list/page.tsx`).
-- Claude API: model `claude-haiku-4-5`, endpoint `https://api.anthropic.com/v1/messages`, header `anthropic-version: 2023-06-01`, `ANTHROPIC_API_KEY` read from `process.env` (already present in `.env.local.example`). Called via raw `fetch`, no Anthropic SDK — matches the project's existing pattern of zero extra HTTP-client dependencies (see `lib/d1.ts`, `app/api/recipes/import/route.ts`).
+- No external API calls anywhere in this feature (see Revision note above) — every route is pure D1 CRUD via `d1Query`.
 - Migrations are numbered sequentially in `d1/migrations/` (existing files: `0002`, `0003`); `d1/schema.sql` is kept as the canonical full current schema (existing migrations were folded back into it) as well as being applied via `d1/migrations/`.
 - Full spec: `docs/superpowers/specs/2026-08-09-aisle-sort-design.md`.
 
@@ -209,7 +211,11 @@ git commit -m "Seed aisle_directory with confirmed store walking order"
 
 ---
 
-### Task 3: Item-name normalization and Claude prompt/response parsing (pure functions)
+### Task 3: Item-name normalization (pure function) — ALREADY EXECUTED under the prior Claude-based design
+
+**Status as of the revision:** this task already ran and was reviewed/approved (commit `67ae181`), building `normalizeItemName`, `buildMatchPrompt`, and `parseMatchResponse` in `lib/aisleMatcher.ts`. Only `normalizeItemName` is still needed — `buildMatchPrompt` and `parseMatchResponse` were Claude-specific and are now dead code. **Do not re-run this task.** Its cleanup (removing the two now-unused functions and their tests) is folded into the revised Task 4 below.
+
+**Original brief, kept for historical reference (the part still relevant is `normalizeItemName`):**
 
 **Files:**
 - Create: `lib/aisleMatcher.ts`
@@ -217,7 +223,7 @@ git commit -m "Seed aisle_directory with confirmed store walking order"
 
 **Interfaces:**
 - Consumes: `AisleDirectoryEntry` from `lib/types.ts` (Task 1).
-- Produces: `normalizeItemName(name: string): string`, `buildMatchPrompt(itemNames: string[], directory: AisleDirectoryEntry[]): string`, `parseMatchResponse(rawText: string, itemNames: string[], directory: AisleDirectoryEntry[]): Record<string, string | null>` — all exported from `lib/aisleMatcher.ts`. Task 4 adds `matchItemsToAisles` to this same file, consuming `buildMatchPrompt` and `parseMatchResponse`. Task 5 and Task 8 consume `normalizeItemName`.
+- Produces: `normalizeItemName(name: string): string` — still exported from `lib/aisleMatcher.ts` and consumed by Task 5, Task 7, and Task 8.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -365,139 +371,64 @@ git commit -m "Add item-name normalization and Claude match prompt/response pars
 
 ---
 
-### Task 4: Claude batch-matching network call
+### Task 4 (REVISED): Remove the now-unused Claude-matching code
+
+**Why this replaces the original Task 4:** the original Task 4 added `matchItemsToAisles` (a Claude API call) to `lib/aisleMatcher.ts`, and it was executed and committed (`9ff5887`) before the user decided the app must run at zero cost. This revised task removes that function and the two Claude-specific helpers from Task 3 (`buildMatchPrompt`, `parseMatchResponse`), leaving only `normalizeItemName` — the one piece every other task actually needs.
 
 **Files:**
 - Modify: `lib/aisleMatcher.ts`
-- Test: `__tests__/aisleMatcher.test.ts`
+- Modify: `__tests__/aisleMatcher.test.ts`
 
 **Interfaces:**
-- Consumes: `buildMatchPrompt`, `parseMatchResponse` from Task 3 (same file).
-- Produces: `matchItemsToAisles(itemNames: string[], directory: AisleDirectoryEntry[]): Promise<Record<string, string | null>>`, exported from `lib/aisleMatcher.ts`. Task 8 consumes this.
+- Consumes: nothing new.
+- Produces: `lib/aisleMatcher.ts` exporting only `normalizeItemName(name: string): string` (same signature as before — no consumer of this function changes). `buildMatchPrompt`, `parseMatchResponse`, and `matchItemsToAisles` are deleted, along with every test for them.
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Rewrite `lib/aisleMatcher.ts` to contain only `normalizeItemName`**
 
-Append to `__tests__/aisleMatcher.test.ts`:
+Replace the entire contents of `lib/aisleMatcher.ts` with:
 
 ```typescript
-import { vi, beforeEach, afterEach } from "vitest";
-import { matchItemsToAisles } from "@/lib/aisleMatcher";
+export function normalizeItemName(name: string): string {
+  return name.trim().toLowerCase();
+}
+```
 
-describe("matchItemsToAisles", () => {
-  const originalFetch = global.fetch;
-  const originalKey = process.env.ANTHROPIC_API_KEY;
+(The `AisleDirectoryEntry` import and every other function are removed — nothing else in this file is used anymore.)
 
-  beforeEach(() => {
-    process.env.ANTHROPIC_API_KEY = "test-key";
+- [ ] **Step 2: Rewrite `__tests__/aisleMatcher.test.ts` to test only `normalizeItemName`**
+
+Replace the entire contents of `__tests__/aisleMatcher.test.ts` with:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { normalizeItemName } from "@/lib/aisleMatcher";
+
+describe("normalizeItemName", () => {
+  it("trims and lowercases", () => {
+    expect(normalizeItemName("  Milk  ")).toBe("milk");
   });
 
-  afterEach(() => {
-    global.fetch = originalFetch;
-    process.env.ANTHROPIC_API_KEY = originalKey;
-  });
-
-  it("returns an empty object immediately for an empty item list", async () => {
-    const result = await matchItemsToAisles([], directory);
-    expect(result).toEqual({});
-  });
-
-  it("calls the Anthropic Messages API with the expected shape and parses the reply", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        content: [{ type: "text", text: '{"milk": "aisle-a37"}' }],
-      }),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    const result = await matchItemsToAisles(["milk"], directory);
-
-    expect(result).toEqual({ milk: "aisle-a37" });
-    const [url, options] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://api.anthropic.com/v1/messages");
-    expect(options.method).toBe("POST");
-    expect(options.headers["x-api-key"]).toBe("test-key");
-    expect(options.headers["anthropic-version"]).toBe("2023-06-01");
-    const body = JSON.parse(options.body);
-    expect(body.model).toBe("claude-haiku-4-5");
-    expect(body.messages[0].content).toContain("milk");
-  });
-
-  it("returns null for every item when the API call fails, instead of throwing", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
-    const result = await matchItemsToAisles(["milk", "eggs"], directory);
-    expect(result).toEqual({ milk: null, eggs: null });
-  });
-
-  it("returns null for every item when the network call throws", async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error("network down")) as unknown as typeof fetch;
-    const result = await matchItemsToAisles(["milk"], directory);
-    expect(result).toEqual({ milk: null });
+  it("treats different-case names as the same normalized value", () => {
+    expect(normalizeItemName("EGGS")).toBe(normalizeItemName("eggs"));
   });
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [ ] **Step 3: Run the tests**
 
 Run: `npm test -- aisleMatcher`
-Expected: FAIL — `matchItemsToAisles` is not exported.
+Expected: PASS, 2 tests (down from 12 — the 10 removed tests covered the deleted Claude-specific functions).
 
-- [ ] **Step 3: Implement the network call**
+- [ ] **Step 4: Run the full suite and type-check to confirm nothing else references the removed functions**
 
-Append to `lib/aisleMatcher.ts`:
-
-```typescript
-export async function matchItemsToAisles(
-  itemNames: string[],
-  directory: AisleDirectoryEntry[]
-): Promise<Record<string, string | null>> {
-  if (itemNames.length === 0) return {};
-
-  const emptyResult = () => {
-    const empty: Record<string, string | null> = {};
-    for (const name of itemNames) empty[name] = null;
-    return empty;
-  };
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return emptyResult();
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 1024,
-        messages: [{ role: "user", content: buildMatchPrompt(itemNames, directory) }],
-      }),
-    });
-
-    if (!res.ok) return emptyResult();
-
-    const json = (await res.json()) as { content?: { type: string; text?: string }[] };
-    const text = json.content?.find((c) => c.type === "text")?.text ?? "";
-    return parseMatchResponse(text, itemNames, directory);
-  } catch {
-    return emptyResult();
-  }
-}
-```
-
-- [ ] **Step 4: Run the tests to verify they pass**
-
-Run: `npm test -- aisleMatcher`
-Expected: PASS (all tests in `aisleMatcher.test.ts`, including the new `matchItemsToAisles` suite).
+Run: `npm test` and `npx tsc --noEmit`
+Expected: both clean. (`lib/groceryOrder.ts` only imports `normalizeItemName`, so it's unaffected; nothing else in the repo imports `buildMatchPrompt`, `parseMatchResponse`, or `matchItemsToAisles` yet, since Task 8 — which would have used them — hasn't been executed under the old design.)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add lib/aisleMatcher.ts __tests__/aisleMatcher.test.ts
-git commit -m "Add Claude batch-matching call for item-to-aisle matching"
+git commit -m "Remove Claude-based matching functions; app now runs at zero external-API cost"
 ```
 
 ---
@@ -769,14 +700,16 @@ git commit -m "Add manual item-to-aisle pick API route"
 
 ---
 
-### Task 8: "Let's go shopping" batch-match-and-sort API route
+### Task 8 (REVISED): "Let's go shopping" cache-lookup-and-sort API route
+
+**Why this is revised from the original:** the original Task 8 called `matchItemsToAisles` (Claude) for any uncached item before sorting. That call is removed — this route now purely reads the current `item_aisle_cache` state and sorts; anything not already cached simply lands in `unmatched` for the user to pick manually (Task 7's route handles that pick). Because this route now has **no side effects** (it never writes to the database), it's a `GET` instead of a `POST`.
 
 **Files:**
 - Create: `app/api/grocery-list/shop/route.ts`
 
 **Interfaces:**
-- Consumes: `d1Query` from `lib/d1.ts`; `normalizeItemName`, `matchItemsToAisles` from `lib/aisleMatcher.ts`; `sortAndGroupItems` from `lib/groceryOrder.ts`; `AisleDirectoryEntry`, `GroceryListItem`, `ItemAisleCacheEntry` from `lib/types.ts`.
-- Produces: `POST /api/grocery-list/shop` → `GroupedGroceryList` (see Task 5). Consumed by Task 9 (Grocery List page).
+- Consumes: `d1Query` from `lib/d1.ts`; `sortAndGroupItems` from `lib/groceryOrder.ts` (which itself uses `normalizeItemName` internally — this route doesn't need to import it directly); `AisleDirectoryEntry`, `GroceryListItem`, `ItemAisleCacheEntry` from `lib/types.ts`.
+- Produces: `GET /api/grocery-list/shop` → `GroupedGroceryList` (see Task 5). Consumed by Task 9 (Grocery List page).
 
 - [ ] **Step 1: Implement the route**
 
@@ -785,11 +718,10 @@ Create `app/api/grocery-list/shop/route.ts`:
 ```typescript
 import { NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
-import { normalizeItemName, matchItemsToAisles } from "@/lib/aisleMatcher";
 import { sortAndGroupItems } from "@/lib/groceryOrder";
 import type { AisleDirectoryEntry, GroceryListItem, ItemAisleCacheEntry } from "@/lib/types";
 
-export async function POST() {
+export async function GET() {
   const items = await d1Query<GroceryListItem>("SELECT * FROM grocery_list");
   const directory = await d1Query<AisleDirectoryEntry>("SELECT * FROM aisle_directory");
   const cacheRows = await d1Query<ItemAisleCacheEntry>("SELECT * FROM item_aisle_cache");
@@ -801,34 +733,6 @@ export async function POST() {
     if (aisle) aisleByItemName.set(row.item_name, aisle);
   }
 
-  const uncachedNames = Array.from(
-    new Set(
-      items
-        .map((i) => normalizeItemName(i.item_name))
-        .filter((name) => !aisleByItemName.has(name))
-    )
-  );
-
-  if (uncachedNames.length > 0) {
-    const matches = await matchItemsToAisles(uncachedNames, directory);
-    for (const name of uncachedNames) {
-      const aisleId = matches[name];
-      if (!aisleId) continue;
-      const aisle = directoryById.get(aisleId);
-      if (!aisle) continue;
-      aisleByItemName.set(name, aisle);
-      await d1Query(
-        `INSERT INTO item_aisle_cache (item_name, aisle_directory_id, matched_by)
-         VALUES (?, ?, 'ai')
-         ON CONFLICT(item_name) DO UPDATE SET
-           aisle_directory_id = excluded.aisle_directory_id,
-           matched_by = 'ai',
-           matched_at = datetime('now')`,
-        [name, aisleId]
-      );
-    }
-  }
-
   const grouped = sortAndGroupItems(items, aisleByItemName);
   return NextResponse.json(grouped);
 }
@@ -836,19 +740,19 @@ export async function POST() {
 
 - [ ] **Step 2: Manually verify against the dev server**
 
-With the dev server running, add a couple of items via the existing Grocery List UI (e.g. "Milk", "Bath Towels"), then:
+With the dev server running, add a couple of items via `curl -X POST http://localhost:3000/api/grocery-list -H "Content-Type: application/json" -d '{"item_name": "<name>"}'` (or the existing Grocery List UI) — one whose normalized name you'll manually cache to a real walk-ordered aisle via `POST /api/item-aisle-cache` (Task 7) first, and one you'll leave uncached. Then:
 
 ```bash
-curl -X POST http://localhost:3000/api/grocery-list/shop
+curl http://localhost:3000/api/grocery-list/shop
 ```
 
-Expected: JSON with a `sorted` array (items matched to a walk-ordered aisle, e.g. "Milk" → the A37 aisle) and an `unmatched` array (items with no confident match, e.g. "Bath Towels" if it doesn't match a directory entry). Re-running the same command should return the same result without materially changing latency (cache hit — no new Claude call for already-matched names).
+Expected: JSON with a `sorted` array containing the manually-cached item (with its aisle's `walk_order` populated) and an `unmatched` array containing the uncached item (`aisle: null`). Delete any test grocery-list items and cache rows you create during this verification afterward — this hits the live production database (see Task 7's note on not running `wrangler d1 execute --remote` yourself for cache deletes; leave that to the controller).
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add app/api/grocery-list/shop/route.ts
-git commit -m "Add batch item-to-aisle matching and sort API route"
+git commit -m "Add cache-lookup-and-sort API route for the grocery list"
 ```
 
 ---
@@ -859,7 +763,7 @@ git commit -m "Add batch item-to-aisle matching and sort API route"
 - Modify: `app/grocery-list/page.tsx`
 
 **Interfaces:**
-- Consumes: `GroupedGroceryList`, `SortedGroceryItem` from `lib/groceryOrder.ts`; `AisleDirectoryEntry` from `lib/types.ts`; `POST /api/grocery-list/shop` (Task 8), `POST /api/item-aisle-cache` (Task 7), `GET /api/aisle-directory` (Task 6).
+- Consumes: `GroupedGroceryList`, `SortedGroceryItem` from `lib/groceryOrder.ts`; `AisleDirectoryEntry` from `lib/types.ts`; `GET /api/grocery-list/shop` (Task 8, revised to GET — no side effects), `POST /api/item-aisle-cache` (Task 7), `GET /api/aisle-directory` (Task 6).
 
 - [ ] **Step 1: Update the page**
 
@@ -919,7 +823,7 @@ export default function GroceryListPage() {
 
   async function handleShop() {
     setSorting(true);
-    const res = await fetch("/api/grocery-list/shop", { method: "POST" });
+    const res = await fetch("/api/grocery-list/shop");
     const data: GroupedGroceryList = await res.json();
     setGrouped(data);
     if (data.unmatched.length > 0 && aisleOptions.length === 0) {
@@ -1046,9 +950,10 @@ export default function GroceryListPage() {
 
 Run: `npm run dev`, open `/grocery-list`.
 
-- Add a couple of grocery items whose names clearly match seeded categories (e.g. "milk", "eggs") and one that won't match anything (e.g. "gift wrap").
-- Click "Let's go shopping". Confirm the list re-renders sorted, with an "Unmatched" section at the bottom containing the non-matching item and a working aisle-picker dropdown.
-- Pick an aisle from the dropdown for the unmatched item; confirm it moves out of "Unmatched" into the sorted list without a full page reload.
+- Add a couple of new grocery items (e.g. "milk", "gift wrap") — since matching is manual-only, neither has a cache entry yet.
+- Click "Let's go shopping". Confirm the list re-renders with both items in an "Unmatched" section at the bottom, each with a working aisle-picker dropdown (the `sorted` section will be empty on a fresh list — that's correct, nothing is cached yet).
+- Pick an aisle from the dropdown for "milk" (e.g. the A37 "Milk, Creamer, Eggs, Juice" aisle); confirm it moves out of "Unmatched" into the sorted list without a full page reload.
+- Click "Let's go shopping" again with the same items still on the list (or add "milk" again on a future list) and confirm it's now sorted automatically — the cache entry persists.
 - Check off an item in either view; confirm it's removed from the list and from D1 (`GET /api/grocery-list` no longer includes it).
 - Add a new item while the sorted view is showing; confirm the view resets to the plain unsorted list (matching the "unsorted until re-pressed" behavior in the spec).
 
@@ -1243,6 +1148,7 @@ git commit -m "Add Edit Aisle Order page and nav link"
 
 ## Self-Review Notes
 
-- **Spec coverage:** `aisle_directory`/`item_aisle_cache` data model (Task 1–2), batched Claude matching (Task 3–4, 8), sort/group with Unmatched fallback (Task 5, 8–9), Unmatched inline picker with permanent caching (Task 7, 9), Edit Aisle Order screen with Route/Unordered groups and Add-to-route/Remove-from-route (Task 10), error handling (Claude failure → empty match map → everything unmatched, Task 4) are all covered. Price/image and non-grocery walk ordering are explicitly out of scope per the spec and are not implemented here.
-- **Type consistency:** `AisleDirectoryEntry`/`ItemAisleCacheEntry` (Task 1) are used unchanged through Tasks 3–10. `GroupedGroceryList`/`SortedGroceryItem` (Task 5) are used unchanged by the API route (Task 8) and the page (Task 9). `matchItemsToAisles`'s return shape (`Record<string, string | null>`) matches what Task 8 destructures.
+- **Spec coverage:** `aisle_directory`/`item_aisle_cache` data model (Task 1–2), manual-only matching with permanent caching (Task 4 revised, Task 7, 8, 9), sort/group with Unmatched fallback (Task 5, 8–9), Unmatched inline picker (Task 7, 9), Edit Aisle Order screen with Route/Unordered groups and Add-to-route/Remove-from-route (Task 10), error handling (no external call to fail; D1-only, Task 8) are all covered. Price/image and non-grocery walk ordering are explicitly out of scope per the spec and are not implemented here.
+- **Type consistency:** `AisleDirectoryEntry`/`ItemAisleCacheEntry` (Task 1) are used unchanged through Tasks 5–10. `GroupedGroceryList`/`SortedGroceryItem` (Task 5) are used unchanged by the API route (Task 8) and the page (Task 9). `normalizeItemName`'s signature is unchanged by the Task 4 revision, so Task 5/7/8's consumption of it is unaffected.
 - **Placeholder scan:** no TODOs; every step has runnable code and concrete verification commands.
+- **Revision consistency (2026-08-09):** confirmed no remaining reference to `matchItemsToAisles`, `buildMatchPrompt`, `parseMatchResponse`, or the Anthropic API anywhere in Tasks 5–10 after the Task 3/4/8 rewrites above.
