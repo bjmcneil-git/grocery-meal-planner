@@ -44,3 +44,17 @@ export interface GroceryListItem {
   walmart_item_id: string | null;
   added_at: string;
 }
+
+export interface AisleDirectoryEntry {
+  id: string;
+  code: string;
+  categories: string;
+  walk_order: number | null;
+}
+
+export interface ItemAisleCacheEntry {
+  item_name: string;
+  aisle_directory_id: string;
+  matched_by: "ai" | "manual";
+  matched_at: string;
+}
