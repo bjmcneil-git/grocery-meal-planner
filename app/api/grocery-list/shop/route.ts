@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
-import { normalizeItemName } from "@/lib/aisleMatcher";
 import { sortAndGroupItems } from "@/lib/groceryOrder";
 import type { AisleDirectoryEntry, GroceryListItem, ItemAisleCacheEntry } from "@/lib/types";
 
-export async function POST() {
+export async function GET() {
   const items = await d1Query<GroceryListItem>("SELECT * FROM grocery_list");
   const directory = await d1Query<AisleDirectoryEntry>("SELECT * FROM aisle_directory");
   const cacheRows = await d1Query<ItemAisleCacheEntry>("SELECT * FROM item_aisle_cache");
