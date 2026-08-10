@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
 import type { AisleDirectoryEntry } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 async function listDirectory(): Promise<AisleDirectoryEntry[]> {
   return d1Query<AisleDirectoryEntry>(
     "SELECT * FROM aisle_directory ORDER BY walk_order IS NULL, walk_order ASC, code ASC"

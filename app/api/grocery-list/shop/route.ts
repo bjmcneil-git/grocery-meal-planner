@@ -3,6 +3,8 @@ import { d1Query } from "@/lib/d1";
 import { sortAndGroupItems } from "@/lib/groceryOrder";
 import type { AisleDirectoryEntry, GroceryListItem, ItemAisleCacheEntry } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const items = await d1Query<GroceryListItem>("SELECT * FROM grocery_list");
   const directory = await d1Query<AisleDirectoryEntry>("SELECT * FROM aisle_directory");
