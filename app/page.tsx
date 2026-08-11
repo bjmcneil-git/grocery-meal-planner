@@ -87,10 +87,6 @@ export default function HomePage() {
           })}
         </ul>
       )}
-
-      <p className="text-gray-500 text-sm mt-4">
-        Assigning a recipe adds its missing ingredients to your grocery list.
-      </p>
     </main>
   );
 }

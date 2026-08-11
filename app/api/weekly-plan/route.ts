@@ -1,8 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
-import { computeMissingIngredients } from "@/lib/ingredients";
-import type { Purchase, PurchaseItem, RecipeIngredient, WeeklyPlanEntry } from "@/lib/types";
+import type { WeeklyPlanEntry } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -46,27 +45,6 @@ export async function POST(req: NextRequest) {
      RETURNING *`,
     [randomUUID(), week_start_date, day_of_week, recipe_id, plan_date]
   );
-
-  const recipeIngredients = await d1Query<RecipeIngredient>(
-    "SELECT * FROM recipe_ingredients WHERE recipe_id = ?",
-    [recipe_id]
-  );
-
-  const since = new Date();
-  since.setDate(since.getDate() - 14);
-  const recentPurchases = await d1Query<Purchase>(
-    "SELECT * FROM purchases WHERE completed_at >= ?",
-    [since.toISOString().slice(0, 10)]
-  );
-  const allRecentItems: PurchaseItem[] = recentPurchases.flatMap((p) => JSON.parse(p.items as unknown as string));
-
-  const missing = computeMissingIngredients(recipeIngredients, allRecentItems);
-  for (const ing of missing) {
-    await d1Query(
-      `INSERT INTO grocery_list (id, item_name, quantity, source) VALUES (?, ?, ?, 'planned')`,
-      [randomUUID(), ing.ingredient_name, ing.quantity]
-    );
-  }
 
   return NextResponse.json(entry, { status: 201 });
 }
