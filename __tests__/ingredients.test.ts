@@ -24,4 +24,21 @@ describe("computeMissingIngredients", () => {
     const recipeIngredients = [ing("eggs"), ing("milk")];
     expect(computeMissingIngredients(recipeIngredients, [])).toHaveLength(2);
   });
+
+  it("excludes common pantry staples like water, salt, and oil even with no purchase history", () => {
+    const recipeIngredients = [
+      ing("2 cups water"),
+      ing("Salt and pepper to taste"),
+      ing("2 Tablespoons olive oil"),
+      ing("chicken breast"),
+    ];
+    const result = computeMissingIngredients(recipeIngredients, []);
+    expect(result.map((i) => i.ingredient_name)).toEqual(["chicken breast"]);
+  });
+
+  it("does not exclude an ingredient that merely contains a staple word as a substring", () => {
+    const recipeIngredients = [ing("boiled eggs"), ing("saltine crackers")];
+    const result = computeMissingIngredients(recipeIngredients, []);
+    expect(result.map((i) => i.ingredient_name)).toEqual(["boiled eggs", "saltine crackers"]);
+  });
 });
