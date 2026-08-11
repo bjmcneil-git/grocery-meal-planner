@@ -31,8 +31,7 @@ export interface Purchase {
 
 export interface WeeklyPlanEntry {
   id: string;
-  week_start_date: string;
-  day_of_week: number;
+  plan_date: string;
   recipe_id: string | null;
 }
 

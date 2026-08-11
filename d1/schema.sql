@@ -29,8 +29,11 @@ CREATE TABLE weekly_plan (
   week_start_date TEXT NOT NULL,
   day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
   recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+  plan_date TEXT,
   UNIQUE (week_start_date, day_of_week)
 );
+
+CREATE UNIQUE INDEX idx_weekly_plan_plan_date ON weekly_plan(plan_date);
 
 CREATE TABLE grocery_list (
   id TEXT PRIMARY KEY,

@@ -5,14 +5,17 @@ import Link from "next/link";
 import type { Recipe } from "@/lib/types";
 import { CUISINES } from "@/lib/cuisines";
 import { formatCookTime } from "@/lib/formatCookTime";
-import { DAYS, getWeekStart } from "@/lib/week";
+import { getUpcomingDays } from "@/lib/week";
+
+const DAYS_AHEAD = 14;
 
 export default function RecipesPage() {
+  const days = getUpcomingDays(DAYS_AHEAD);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [query, setQuery] = useState("");
   const [cuisine, setCuisine] = useState<string>("All");
   const [pickingDayFor, setPickingDayFor] = useState<string | null>(null);
-  const [justAdded, setJustAdded] = useState<{ recipeId: string; day: string } | null>(null);
+  const [justAdded, setJustAdded] = useState<{ recipeId: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,21 +24,17 @@ export default function RecipesPage() {
       .then(setRecipes);
   }, []);
 
-  async function addToDay(recipeId: string, dayOfWeek: number) {
+  async function addToDay(recipeId: string, planDate: string, label: string) {
     setPickingDayFor(null);
     try {
       const res = await fetch("/api/weekly-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          week_start_date: getWeekStart(),
-          day_of_week: dayOfWeek,
-          recipe_id: recipeId,
-        }),
+        body: JSON.stringify({ plan_date: planDate, recipe_id: recipeId }),
       });
       if (!res.ok) throw new Error(`Failed to add to day with status ${res.status}`);
       setError(null);
-      setJustAdded({ recipeId, day: DAYS[dayOfWeek] });
+      setJustAdded({ recipeId, label });
       setTimeout(() => setJustAdded(null), 2000);
     } catch {
       setError("Failed to add that recipe to a day. Please try again.");
@@ -120,21 +119,23 @@ export default function RecipesPage() {
                 className="mt-1 w-full border rounded text-xs p-1"
                 defaultValue=""
                 onChange={(e) => {
-                  if (e.target.value) addToDay(r.id, Number(e.target.value));
+                  const day = days.find((d) => d.date === e.target.value);
+                  if (day) addToDay(r.id, day.date, day.relative ?? day.label);
                 }}
               >
                 <option value="" disabled>
                   Add to day...
                 </option>
-                {DAYS.map((d, i) => (
-                  <option key={i} value={i}>
-                    {d}
+                {days.map((d) => (
+                  <option key={d.date} value={d.date}>
+                    {d.label}
+                    {d.relative ? ` (${d.relative})` : ""}
                   </option>
                 ))}
               </select>
             )}
             {justAdded?.recipeId === r.id && (
-              <p className="mt-1 text-xs text-green-600">Added to {justAdded.day}</p>
+              <p className="mt-1 text-xs text-green-600">Added to {justAdded.label}</p>
             )}
           </div>
         ))}
