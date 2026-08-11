@@ -17,7 +17,7 @@ INSERT INTO aisle_directory (id, code, categories, walk_order) VALUES (lower(hex
 INSERT INTO aisle_directory (id, code, categories, walk_order) VALUES (lower(hex(randomblob(16))), 'A24-A25', 'Insecticides, Mops & Brooms, Bathroom Tissue, All Purpose Cleaners', 16);
 INSERT INTO aisle_directory (id, code, categories, walk_order) VALUES (lower(hex(randomblob(16))), 'A26-A27', 'Bleach, Air Fresheners, Dish Detergent, Laundry', 17);
 INSERT INTO aisle_directory (id, code, categories, walk_order) VALUES (lower(hex(randomblob(16))), 'A28', 'Yogurt, Butter', 18);
-INSERT INTO aisle_directory (id, code, categories, walk_order) VALUES (lower(hex(randomblob(16))), 'A35, A29, A31, A33', 'Snacks, Beverages, Alcohol', 19);
+INSERT INTO aisle_directory (id, code, categories, walk_order) VALUES (lower(hex(randomblob(16))), 'A35, A29, A31, A33', 'Snacks, Chips, Pretzels, Beverages, Alcohol', 19);
 INSERT INTO aisle_directory (id, code, categories, walk_order) VALUES (lower(hex(randomblob(16))), 'A37', 'Milk, Creamer, Eggs, Juice', 20);
 INSERT INTO aisle_directory (id, code, categories, walk_order) VALUES (lower(hex(randomblob(16))), 'A39', 'Dairy, Cheese, Lunch', 21);
 INSERT INTO aisle_directory (id, code, categories, walk_order) VALUES (lower(hex(randomblob(16))), 'AC3', 'Meats', 22);
