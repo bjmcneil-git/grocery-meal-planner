@@ -48,6 +48,13 @@ describe("matchByKeyword", () => {
   it("does not substring-match on very short item names", () => {
     expect(matchByKeyword("a", directory)).toBeNull();
   });
+
+  it("does not match a short item name embedded inside a longer, unrelated category word", () => {
+    const popcornOnly: AisleDirectoryEntry[] = [
+      { id: "a18", code: "A18-A19", categories: "Cookies, Popcorn, Crackers", walk_order: 13 },
+    ];
+    expect(matchByKeyword("pop", popcornOnly)).toBeNull();
+  });
 });
 
 const aiDirectory: AisleDirectoryEntry[] = [

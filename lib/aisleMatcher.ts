@@ -17,12 +17,27 @@ function walkOrderRank(aisle: AisleDirectoryEntry): number {
   return aisle.walk_order === null ? Number.MAX_SAFE_INTEGER : aisle.walk_order;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Whether `needle` appears in `haystack` as a whole word, not embedded inside
+// a longer word — e.g. "milk" is a whole-word match in "chocolate milk", but
+// "pop" is NOT a whole-word match in "popcorn" (the run continues into "corn").
+function isWholeWordSubstring(haystack: string, needle: string): boolean {
+  return new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(needle)}(?:[^a-z0-9]|$)`).test(haystack);
+}
+
+function isSimplePlural(a: string, b: string): boolean {
+  return `${a}s` === b || `${b}s` === a;
+}
+
 /**
  * Zero-cost, no-API item-to-aisle matcher: looks for the item name among
  * each aisle's category words (comma/slash-separated), first for an exact
- * word match, then falling back to substring matches. Deliberately weaker
- * than an AI matcher — it can't infer e.g. "steak" -> "Meats" — but it
- * costs nothing to run on every "Let's go shopping" press.
+ * word match, then a simple plural, then a whole-word substring match.
+ * Deliberately weaker than an AI matcher — it can't infer e.g. "steak" ->
+ * "Meats" — but it costs nothing to run on every "Let's go shopping" press.
  */
 export function matchByKeyword(itemName: string, directory: AisleDirectoryEntry[]): string | null {
   const normalized = normalizeItemName(itemName);
@@ -39,7 +54,11 @@ export function matchByKeyword(itemName: string, directory: AisleDirectoryEntry[
   for (const aisle of directory) {
     for (const token of categoryTokens(aisle.categories)) {
       if (token.length < MIN_SUBSTRING_LENGTH) continue;
-      if (!normalized.includes(token) && !token.includes(normalized)) continue;
+      const matches =
+        isSimplePlural(normalized, token) ||
+        isWholeWordSubstring(normalized, token) ||
+        isWholeWordSubstring(token, normalized);
+      if (!matches) continue;
       if (
         !best ||
         token.length > best.tokenLength ||
