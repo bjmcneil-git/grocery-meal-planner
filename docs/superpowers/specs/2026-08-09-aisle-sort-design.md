@@ -4,14 +4,21 @@ Date: 2026-08-09 (revised same day, mid-implementation)
 For: Brandon's wife (primary user, phone-only, no login) — same household app as
 [2026-07-29-grocery-meal-planner-design.md](2026-07-29-grocery-meal-planner-design.md)
 
-**Revision note:** this spec originally called for a batched Claude API call
-to auto-match item names to aisles (see git history for that version). Mid-
-implementation, the user clarified they want the app to run at zero ongoing
-cost — the Claude API has no free tier, so that call was removed entirely.
-Matching is now 100% manual: the first time a new item name is added, the
-user picks its aisle once from a dropdown, and that pick is cached forever.
-Everything else in this spec (schema, walk order, screens) is unchanged by
-that revision except where noted below.
+**Revision note (2nd revision, 2026-08-11):** this spec briefly went through
+a manual-only phase (no AI call at all — see git history) after the user
+asked to cut ongoing API cost. In practice that meant every new item name
+needed a manual pick before it would sort, which didn't deliver the actual
+goal ("type in the list, hit the button, get it back in order"). Matching
+is now a **hybrid**: a free, zero-cost keyword pass (exact/substring match
+against each aisle's category words) runs first for every uncached item;
+only the names that pass can't resolve get sent to Claude in one batched
+call. This keeps the common case free and instant while still auto-
+resolving fuzzy names ("chips" → Snacks, "steak" → Beef) that keyword
+matching alone can't reach without endless one-off dictionary patches.
+Manual picking (the Unmatched picker) remains as the final fallback for
+anything neither pass can resolve, and still caches forever. Everything
+else in this spec (schema, walk order, screens) is unchanged by these
+revisions except where noted below.
 
 ## Purpose
 
@@ -36,13 +43,14 @@ edited through the app itself once entered.
   (paper towels, batteries) do occasionally end up on the list. Only the
   grocery-side aisles have a confirmed walking order right now; the rest are
   left alone for now with no order assigned.
-- **Matching is manual only, cached forever.** No AI/API call of any kind —
-  the Claude API has no free tier and the user wants this app to cost
-  nothing to run. The first time a given item name appears with no cache
-  entry, it shows up in an "Unmatched" group; the user taps to pick its
-  aisle once, and that pick is cached by item name permanently. Since a
-  household's grocery item names repeat trip to trip, this is a handful of
-  one-time taps total, not a recurring chore.
+- **Matching is a free-then-paid hybrid, cached forever.** For each item
+  name with no cache entry: first try a zero-cost keyword match against
+  the aisle directory's category words (exact word, then substring); names
+  that still don't resolve get sent to Claude in one batched call. Either
+  way, once an item name resolves it's cached by normalized name
+  permanently — the first "Let's go shopping" after adding a brand-new
+  item name is the only time it costs anything (a fraction of a cent, only
+  for the names keyword-matching missed), never again after that.
 - **Unmatched items never block the sort.** Any item with no cache entry
   (or cached to a department with no confirmed walk order) is grouped at
   the bottom of the sorted list under "Unmatched," where the user taps to
@@ -66,10 +74,10 @@ Extends the existing grocery-meal-planner Next.js app and Cloudflare D1
 database (see base spec's Architecture section — unchanged: Vercel
 auto-deploy, server-side-only external calls).
 
-- **No external calls at all.** Matching is manual-only (see Scope
-  Decisions), so this feature makes zero calls to Claude or any other
-  external API — every screen is pure CRUD against D1 through the app's own
-  API routes.
+- **One conditional external call.** The Claude API (text, `claude-haiku-4-5`,
+  server-side only) is called from `/api/grocery-list/shop`, batched, and
+  only for item names the free keyword pass couldn't resolve — see Scope
+  Decisions. Every other screen/route is pure CRUD against D1.
 
 ## Data Model (D1, additive to existing schema.sql)
 
@@ -93,12 +101,9 @@ CREATE TABLE item_aisle_cache (
   lookup or insert, so "Milk" and "milk" share one cache entry. Different
   phrasings of the same product (e.g. "milk" vs "2% milk") are treated as
   distinct items and matched independently — no fuzzy synonym merging.
-- `matched_by`'s `'ai'` value is currently unused by the application (no
-  code path ever writes it, per the manual-only revision above) — the
-  column and its CHECK constraint were kept as-is rather than migrated
-  again, so the schema doesn't need to change if AI matching is ever
-  revisited later. Every row written by this feature has `matched_by =
-  'manual'`.
+- `matched_by` is `'ai'` for both keyword-pass and Claude-pass matches
+  (both are automated, unattended matches — the column doesn't distinguish
+  which pass produced them) and `'manual'` only for a human's Unmatched pick.
 - `walk_order` is nullable. Null means "no confirmed position" — those aisles
   never appear in the primary sorted sequence; any item matched to one lands
   in the Unmatched group instead.
