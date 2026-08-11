@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
+import Link from "next/link";
 import type { AisleDirectoryEntry, GroceryListItem } from "@/lib/types";
 import type { GroupedGroceryList } from "@/lib/groceryOrder";
 
@@ -12,6 +13,7 @@ export default function GroceryListPage() {
   const [sorting, setSorting] = useState(false);
   const [aisleOptions, setAisleOptions] = useState<AisleDirectoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/grocery-list")
@@ -91,7 +93,12 @@ export default function GroceryListPage() {
 
   return (
     <main className="p-4">
-      <h1 className="text-xl font-bold mb-4">Grocery List</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold">Grocery List</h1>
+        <Link href="/aisle-order" className="text-xs text-pink-600 underline">
+          Edit aisle order
+        </Link>
+      </div>
       <form onSubmit={addItem} className="flex gap-2 mb-4">
         <input
           className="flex-1 border rounded p-2"
@@ -143,28 +150,43 @@ export default function GroceryListPage() {
         <div>
           <ul className="divide-y">
             {grouped.sorted.map(({ item, aisle }) => (
-              <li key={item.id} className="flex items-center gap-3 py-2">
-                <input
-                  type="checkbox"
-                  className="h-5 w-5 accent-pink-600"
-                  onChange={() => removeItem(item.id)}
-                />
-                <span className="flex-1">{item.item_name}</span>
-                <span className="text-xs text-gray-400">{aisle?.code}</span>
-                <select
-                  className="border rounded text-xs p-1"
-                  value={aisle?.id ?? ""}
-                  onChange={(e) => {
-                    if (e.target.value) handlePickAisle(item.item_name, e.target.value);
-                  }}
-                >
-                  {aisleOptions.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.code} — {a.categories}
-                    </option>
-                  ))}
-                </select>
-              </li>
+              <Fragment key={item.id}>
+                <li className="flex items-center gap-3 py-2">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 accent-pink-600"
+                    onChange={() => removeItem(item.id)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEditingItemId((cur) => (cur === item.id ? null : item.id))}
+                    className="w-12 shrink-0 text-left text-xs font-mono text-gray-500"
+                  >
+                    {aisle?.code ?? "—"}
+                  </button>
+                  <span className="flex-1">{item.item_name}</span>
+                </li>
+                {editingItemId === item.id && (
+                  <li className="pb-2 pl-[3.25rem]">
+                    <select
+                      className="border rounded text-xs p-1 w-full"
+                      value={aisle?.id ?? ""}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handlePickAisle(item.item_name, e.target.value);
+                          setEditingItemId(null);
+                        }
+                      }}
+                    >
+                      {aisleOptions.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.code} — {a.categories}
+                        </option>
+                      ))}
+                    </select>
+                  </li>
+                )}
+              </Fragment>
             ))}
           </ul>
 
