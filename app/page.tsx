@@ -2,16 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Recipe, WeeklyPlanEntry } from "@/lib/types";
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function getWeekStart(): string {
-  const now = new Date();
-  const day = now.getDay();
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() - day);
-  return sunday.toISOString().slice(0, 10);
-}
+import { DAYS, getWeekStart } from "@/lib/week";
 
 export default function HomePage() {
   const weekStartDate = getWeekStart();
