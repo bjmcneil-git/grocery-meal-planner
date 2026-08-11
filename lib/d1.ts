@@ -24,6 +24,7 @@ export async function d1Query<T = Record<string, unknown>>(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ sql, params }),
+      cache: "no-store",
     }
   );
 
