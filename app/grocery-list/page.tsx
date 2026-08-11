@@ -132,15 +132,18 @@ export default function GroceryListPage() {
         <ul className="divide-y">
           {items.map((item) => (
             <li key={item.id} className="flex items-center gap-3 py-2">
-              <input
-                type="checkbox"
-                className="h-5 w-5 accent-pink-600"
-                onChange={() => removeItem(item.id)}
-              />
               <span className="flex-1">{item.item_name}</span>
               {item.quantity != null && (
                 <span className="text-sm text-gray-500">{item.quantity}</span>
               )}
+              <button
+                type="button"
+                onClick={() => removeItem(item.id)}
+                aria-label={`Remove ${item.item_name}`}
+                className="w-6 h-6 shrink-0 rounded-full border border-gray-300 text-gray-500 flex items-center justify-center text-sm leading-none"
+              >
+                ×
+              </button>
             </li>
           ))}
         </ul>
@@ -152,11 +155,6 @@ export default function GroceryListPage() {
             {grouped.sorted.map(({ item, aisle }) => (
               <Fragment key={item.id}>
                 <li className="flex items-center gap-3 py-2">
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5 accent-pink-600"
-                    onChange={() => removeItem(item.id)}
-                  />
                   <button
                     type="button"
                     onClick={() => setEditingItemId((cur) => (cur === item.id ? null : item.id))}
@@ -165,6 +163,14 @@ export default function GroceryListPage() {
                     {aisle?.code ?? "—"}
                   </button>
                   <span className="flex-1">{item.item_name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(item.id)}
+                    aria-label={`Remove ${item.item_name}`}
+                    className="w-6 h-6 shrink-0 rounded-full border border-gray-300 text-gray-500 flex items-center justify-center text-sm leading-none"
+                  >
+                    ×
+                  </button>
                 </li>
                 {editingItemId === item.id && (
                   <li className="pb-2 pl-[3.25rem]">
@@ -196,11 +202,6 @@ export default function GroceryListPage() {
               <ul className="divide-y">
                 {grouped.unmatched.map(({ item }) => (
                   <li key={item.id} className="flex items-center gap-3 py-2">
-                    <input
-                      type="checkbox"
-                      className="h-5 w-5 accent-pink-600"
-                      onChange={() => removeItem(item.id)}
-                    />
                     <span className="flex-1">{item.item_name}</span>
                     <select
                       className="border rounded text-xs p-1"
@@ -218,6 +219,14 @@ export default function GroceryListPage() {
                         </option>
                       ))}
                     </select>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.id)}
+                      aria-label={`Remove ${item.item_name}`}
+                      className="w-6 h-6 shrink-0 rounded-full border border-gray-300 text-gray-500 flex items-center justify-center text-sm leading-none"
+                    >
+                      ×
+                    </button>
                   </li>
                 ))}
               </ul>
