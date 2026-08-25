@@ -24,11 +24,11 @@ function escapeRegExp(value: string): string {
 // Whether `needle` appears in `haystack` as a whole word, not embedded inside
 // a longer word — e.g. "milk" is a whole-word match in "chocolate milk", but
 // "pop" is NOT a whole-word match in "popcorn" (the run continues into "corn").
-function isWholeWordSubstring(haystack: string, needle: string): boolean {
+export function isWholeWordSubstring(haystack: string, needle: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(needle)}(?:[^a-z0-9]|$)`).test(haystack);
 }
 
-function isSimplePlural(a: string, b: string): boolean {
+export function isSimplePlural(a: string, b: string): boolean {
   return `${a}s` === b || `${b}s` === a;
 }
 
