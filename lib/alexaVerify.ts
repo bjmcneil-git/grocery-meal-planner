@@ -33,9 +33,14 @@ export async function verifyAlexaSignature(
 ): Promise<boolean> {
   if (!validateCertChainUrl(certChainUrl)) return false;
 
-  const res = await fetch(certChainUrl);
-  if (!res.ok) return false;
-  const pem = await res.text();
+  let pem: string;
+  try {
+    const res = await fetch(certChainUrl);
+    if (!res.ok) return false;
+    pem = await res.text();
+  } catch {
+    return false;
+  }
 
   let cert: crypto.X509Certificate;
   try {
