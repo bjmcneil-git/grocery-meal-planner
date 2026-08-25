@@ -26,8 +26,7 @@ export function findMatchingGroceryItems(spokenName: string, items: GroceryListI
     return (
       itemNormalized === normalized ||
       isSimplePlural(itemNormalized, normalized) ||
-      isWholeWordSubstring(itemNormalized, normalized) ||
-      isWholeWordSubstring(normalized, itemNormalized)
+      isWholeWordSubstring(itemNormalized, normalized)
     );
   });
 }

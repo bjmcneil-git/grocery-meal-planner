@@ -30,7 +30,11 @@ export async function POST(req: NextRequest) {
   }
 
   const skillId = process.env.ALEXA_SKILL_ID;
-  if (skillId && envelope.context?.System?.application?.applicationId !== skillId) {
+  if (!skillId) {
+    console.error("ALEXA_SKILL_ID is not configured; rejecting request");
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+  }
+  if (envelope.context?.System?.application?.applicationId !== skillId) {
     return NextResponse.json({ error: "Unrecognized application" }, { status: 401 });
   }
 
@@ -74,17 +78,28 @@ async function handleAddItems(itemsText: string): Promise<AlexaResponseEnvelope>
     return buildAlexaResponse("Sorry, I didn't catch what to add. Try again.");
   }
 
-  try {
-    for (const { name, quantity } of parsedItems) {
+  const added: string[] = [];
+  const failed: string[] = [];
+
+  for (const { name, quantity } of parsedItems) {
+    try {
       await addGroceryItem(name, quantity, "voice");
+      added.push(quantity > 1 ? `${quantity} ${name}` : name);
+    } catch (err) {
+      console.error("Alexa add item failed", name, err);
+      failed.push(name);
     }
-  } catch (err) {
-    console.error("Alexa add items failed", err);
+  }
+
+  if (added.length === 0) {
     return buildAlexaResponse("Sorry, something went wrong adding that to your list.");
   }
 
-  const names = parsedItems.map((item) => (item.quantity > 1 ? `${item.quantity} ${item.name}` : item.name));
-  return buildAlexaResponse(`Added ${formatItemList(names)} to your grocery list.`);
+  const parts = [`Added ${formatItemList(added)} to your grocery list.`];
+  if (failed.length > 0) {
+    parts.push(`Something went wrong with ${formatItemList(failed)}.`);
+  }
+  return buildAlexaResponse(parts.join(" "));
 }
 
 async function handleRemoveItems(itemsText: string): Promise<AlexaResponseEnvelope> {
@@ -107,7 +122,7 @@ async function handleRemoveItems(itemsText: string): Promise<AlexaResponseEnvelo
       for (const match of matches) {
         await d1Query("DELETE FROM grocery_list WHERE id = ?", [match.id]);
       }
-      removedNames.push(name);
+      removedNames.push(...matches.map((m) => m.item_name));
     }
 
     const parts: string[] = [];

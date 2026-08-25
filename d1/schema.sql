@@ -39,7 +39,7 @@ CREATE TABLE grocery_list (
   id TEXT PRIMARY KEY,
   item_name TEXT NOT NULL,
   quantity REAL,
-  source TEXT NOT NULL CHECK (source IN ('planned', 'manual')),
+  source TEXT NOT NULL CHECK (source IN ('planned', 'manual', 'voice')),
   walmart_item_id TEXT,
   added_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

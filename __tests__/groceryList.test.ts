@@ -28,6 +28,14 @@ describe("findMatchingGroceryItems", () => {
   it("returns an empty array for an empty spoken name", () => {
     expect(findMatchingGroceryItems("", items)).toEqual([]);
   });
+
+  it("does not match a shorter unrelated item whose name is a whole word inside the spoken phrase", () => {
+    const itemsWithOverlap: GroceryListItem[] = [
+      { id: "1", item_name: "Milk", quantity: 1, source: "manual", walmart_item_id: null, added_at: "" },
+      { id: "2", item_name: "Chocolate milk", quantity: 1, source: "manual", walmart_item_id: null, added_at: "" },
+    ];
+    expect(findMatchingGroceryItems("chocolate milk", itemsWithOverlap).map((i) => i.id)).toEqual(["2"]);
+  });
 });
 
 describe("addGroceryItem", () => {
