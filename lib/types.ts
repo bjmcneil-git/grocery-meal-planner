@@ -39,7 +39,7 @@ export interface GroceryListItem {
   id: string;
   item_name: string;
   quantity: number | null;
-  source: "planned" | "manual";
+  source: "planned" | "manual" | "voice";
   walmart_item_id: string | null;
   added_at: string;
 }
