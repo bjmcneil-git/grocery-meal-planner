@@ -34,51 +34,22 @@ export default function HomePage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [plan, setPlan] = useState<WeeklyPlanEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [assigning, setAssigning] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [editingDate, setEditingDate] = useState<string | null>(null);
 
   const recipeById = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes]);
 
-  function refreshPlan() {
+  useEffect(() => {
     const from = days[0].date;
     const to = days[days.length - 1].date;
-    return fetch(`/api/weekly-plan?from=${from}&to=${to}`)
-      .then((r) => r.json())
-      .then(setPlan);
-  }
-
-  useEffect(() => {
-    Promise.all([fetch("/api/recipes").then((r) => r.json()).then(setRecipes), refreshPlan()]).finally(() =>
-      setLoading(false)
-    );
+    Promise.all([
+      fetch("/api/recipes").then((r) => r.json()).then(setRecipes),
+      fetch(`/api/weekly-plan?from=${from}&to=${to}`).then((r) => r.json()).then(setPlan),
+    ]).finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function assignRecipe(planDate: string, recipeId: string) {
-    if (!recipeId) return;
-    setAssigning(planDate);
-    try {
-      const res = await fetch("/api/weekly-plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan_date: planDate, recipe_id: recipeId }),
-      });
-      if (!res.ok) throw new Error(`Failed to assign recipe with status ${res.status}`);
-      await refreshPlan();
-      setError(null);
-      setEditingDate(null);
-    } catch {
-      setError("Failed to assign that recipe. Please try again.");
-    } finally {
-      setAssigning(null);
-    }
-  }
 
   return (
     <main className="p-4">
       <h1 className="text-xl font-bold mb-4">This Week</h1>
-
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {loading ? (
         <p className="text-gray-500">Loading...</p>
@@ -91,27 +62,21 @@ export default function HomePage() {
           {days.map(({ date, label, relative }) => {
             const entry = plan.find((p) => p.plan_date === date);
             const recipe = entry?.recipe_id ? recipeById.get(entry.recipe_id) : undefined;
-            const showSelect = !recipe || editingDate === date;
+            const dayLabel = relative ? `${label} (${relative})` : label;
+            const pickHref = `/recipes?forDate=${date}&forLabel=${encodeURIComponent(dayLabel)}`;
             return (
               <li key={date} className="border-b py-2">
                 <div className="flex items-baseline gap-2 mb-1">
                   <span className="text-sm font-medium">{label}</span>
                   {relative && <span className="text-xs text-pink-600">{relative}</span>}
                 </div>
-                {showSelect ? (
-                  <select
-                    className="w-full border rounded p-2"
-                    value={entry?.recipe_id ?? ""}
-                    disabled={assigning === date}
-                    onChange={(e) => assignRecipe(date, e.target.value)}
+                {!recipe ? (
+                  <Link
+                    href={pickHref}
+                    className="flex items-center justify-center border border-dashed rounded-lg p-3 text-sm text-gray-500"
                   >
-                    <option value="">— none —</option>
-                    {recipes.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
+                    + Choose a recipe
+                  </Link>
                 ) : (
                   <div className="flex items-center gap-1">
                     <Link
@@ -131,14 +96,13 @@ export default function HomePage() {
                         <p className="text-xs text-gray-500">Dinner</p>
                       </div>
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => setEditingDate(date)}
+                    <Link
+                      href={pickHref}
                       aria-label={`Change dinner for ${label}`}
                       className="shrink-0 text-pink-600 p-1"
                     >
                       <SwapIcon />
-                    </button>
+                    </Link>
                   </div>
                 )}
               </li>
