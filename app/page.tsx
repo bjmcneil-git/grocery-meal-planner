@@ -4,16 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Recipe, WeeklyPlanEntry } from "@/lib/types";
 import { getUpcomingDays } from "@/lib/week";
+import { shortenRecipeName } from "@/lib/recipeDisplay";
 
 const DAYS_AHEAD = 14;
-
-// Recipe names are often full titles with a subtitle tacked on (e.g. a blog
-// post's SEO title) - keep only the part before the first separator so the
-// card fits on one line without truncating mid-word on a phone screen.
-function shortenRecipeName(name: string): string {
-  const cut = name.split(/\s[–—-]\s|\s\(/)[0].trim();
-  return cut || name;
-}
 
 function SwapIcon() {
   return (

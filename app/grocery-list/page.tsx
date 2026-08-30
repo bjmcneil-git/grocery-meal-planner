@@ -35,6 +35,9 @@ export default function GroceryListPage() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingQuantityId, setEditingQuantityId] = useState<string | null>(null);
   const [quantityDraft, setQuantityDraft] = useState("");
+  const [completing, setCompleting] = useState(false);
+
+  const allPickedUp = items.length > 0 && items.every((i) => i.picked_up);
 
   useEffect(() => {
     fetch("/api/grocery-list")
@@ -135,6 +138,21 @@ export default function GroceryListPage() {
       setError("Failed to sort your list. Please try again.");
     } finally {
       setSorting(false);
+    }
+  }
+
+  async function handleCompleteList() {
+    setCompleting(true);
+    try {
+      const res = await fetch("/api/grocery-list/complete", { method: "POST" });
+      if (!res.ok) throw new Error(`Failed to complete list with status ${res.status}`);
+      setItems([]);
+      setGrouped(null);
+      setError(null);
+    } catch {
+      setError("Failed to complete the list. Please try again.");
+    } finally {
+      setCompleting(false);
     }
   }
 
@@ -254,7 +272,20 @@ export default function GroceryListPage() {
         </button>
       </form>
 
-      {!loading && items.length > 0 && (
+      {!loading && allPickedUp && (
+        <div className="border border-pink-200 bg-pink-50 rounded-lg p-3 mb-4">
+          <p className="text-sm text-pink-700 mb-2">Everything&rsquo;s picked up!</p>
+          <button
+            onClick={handleCompleteList}
+            disabled={completing}
+            className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
+          >
+            {completing ? "Completing..." : "Complete List"}
+          </button>
+        </div>
+      )}
+
+      {!loading && items.length > 0 && !allPickedUp && (
         <button
           onClick={handleShop}
           disabled={sorting}
