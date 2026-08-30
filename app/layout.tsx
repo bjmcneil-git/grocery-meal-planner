@@ -8,7 +8,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="pb-16 max-w-md mx-auto">
+      <body className="pb-20 max-w-md mx-auto">
         {children}
         <NavBar />
       </body>
