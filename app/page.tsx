@@ -1,10 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { Recipe, WeeklyPlanEntry } from "@/lib/types";
 import { getUpcomingDays } from "@/lib/week";
 
 const DAYS_AHEAD = 14;
+
+// Recipe names are often full titles with a subtitle tacked on (e.g. a blog
+// post's SEO title) - keep only the part before the first separator so the
+// card fits on one line without truncating mid-word on a phone screen.
+function shortenRecipeName(name: string): string {
+  const cut = name.split(/\s[–—-]\s|\s\(/)[0].trim();
+  return cut || name;
+}
 
 function SwapIcon() {
   return (
@@ -84,28 +93,31 @@ export default function HomePage() {
             const recipe = entry?.recipe_id ? recipeById.get(entry.recipe_id) : undefined;
             const showSelect = !recipe || editingDate === date;
             return (
-              <li key={date} className="flex items-center gap-2 border-b py-2">
-                <span className="w-16 shrink-0 text-sm font-medium">
-                  {label}
-                  {relative && <span className="block text-xs text-pink-600">{relative}</span>}
-                </span>
-                <div className="flex-1 flex items-center gap-1">
-                  {showSelect ? (
-                    <select
-                      className="flex-1 border rounded p-2"
-                      value={entry?.recipe_id ?? ""}
-                      disabled={assigning === date}
-                      onChange={(e) => assignRecipe(date, e.target.value)}
+              <li key={date} className="border-b py-2">
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-sm font-medium">{label}</span>
+                  {relative && <span className="text-xs text-pink-600">{relative}</span>}
+                </div>
+                {showSelect ? (
+                  <select
+                    className="w-full border rounded p-2"
+                    value={entry?.recipe_id ?? ""}
+                    disabled={assigning === date}
+                    onChange={(e) => assignRecipe(date, e.target.value)}
+                  >
+                    <option value="">— none —</option>
+                    {recipes.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <Link
+                      href={`/recipes/${recipe.id}`}
+                      className="flex-1 flex items-center gap-3 border rounded-lg p-2 min-w-0"
                     >
-                      <option value="">— none —</option>
-                      {recipes.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="flex-1 flex items-center gap-3 border rounded-lg p-2">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={recipe.image_url ?? "/recipe-placeholder.jpg"}
@@ -113,12 +125,12 @@ export default function HomePage() {
                         className="w-12 h-12 rounded object-cover shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-tight truncate">{recipe.name}</p>
+                        <p className="text-sm font-medium leading-tight truncate" title={recipe.name}>
+                          {shortenRecipeName(recipe.name)}
+                        </p>
                         <p className="text-xs text-gray-500">Dinner</p>
                       </div>
-                    </div>
-                  )}
-                  {!showSelect && (
+                    </Link>
                     <button
                       type="button"
                       onClick={() => setEditingDate(date)}
@@ -127,8 +139,8 @@ export default function HomePage() {
                     >
                       <SwapIcon />
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </li>
             );
           })}
