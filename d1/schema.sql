@@ -41,7 +41,8 @@ CREATE TABLE grocery_list (
   quantity REAL,
   source TEXT NOT NULL CHECK (source IN ('planned', 'manual', 'voice')),
   walmart_item_id TEXT,
-  added_at TEXT NOT NULL DEFAULT (datetime('now'))
+  added_at TEXT NOT NULL DEFAULT (datetime('now')),
+  picked_up INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE aisle_directory (

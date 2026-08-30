@@ -1,0 +1,1 @@
+ALTER TABLE grocery_list ADD COLUMN picked_up INTEGER NOT NULL DEFAULT 0;

@@ -4,9 +4,9 @@ import type { GroceryListItem } from "@/lib/types";
 
 describe("findMatchingGroceryItems", () => {
   const items: GroceryListItem[] = [
-    { id: "1", item_name: "Milk", quantity: 1, source: "manual", walmart_item_id: null, added_at: "" },
-    { id: "2", item_name: "3 cloves garlic (minced)", quantity: null, source: "manual", walmart_item_id: null, added_at: "" },
-    { id: "3", item_name: "Popcorn", quantity: 1, source: "manual", walmart_item_id: null, added_at: "" },
+    { id: "1", item_name: "Milk", quantity: 1, source: "manual", walmart_item_id: null, added_at: "", picked_up: 0 },
+    { id: "2", item_name: "3 cloves garlic (minced)", quantity: null, source: "manual", walmart_item_id: null, added_at: "", picked_up: 0 },
+    { id: "3", item_name: "Popcorn", quantity: 1, source: "manual", walmart_item_id: null, added_at: "", picked_up: 0 },
   ];
 
   it("matches case-insensitively on an exact name", () => {
@@ -31,8 +31,8 @@ describe("findMatchingGroceryItems", () => {
 
   it("does not match a shorter unrelated item whose name is a whole word inside the spoken phrase", () => {
     const itemsWithOverlap: GroceryListItem[] = [
-      { id: "1", item_name: "Milk", quantity: 1, source: "manual", walmart_item_id: null, added_at: "" },
-      { id: "2", item_name: "Chocolate milk", quantity: 1, source: "manual", walmart_item_id: null, added_at: "" },
+      { id: "1", item_name: "Milk", quantity: 1, source: "manual", walmart_item_id: null, added_at: "", picked_up: 0 },
+      { id: "2", item_name: "Chocolate milk", quantity: 1, source: "manual", walmart_item_id: null, added_at: "", picked_up: 0 },
     ];
     expect(findMatchingGroceryItems("chocolate milk", itemsWithOverlap).map((i) => i.id)).toEqual(["2"]);
   });
@@ -61,6 +61,7 @@ describe("addGroceryItem", () => {
       source: "voice",
       walmart_item_id: null,
       added_at: "2026-08-24T00:00:00.000Z",
+      picked_up: 0,
     };
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

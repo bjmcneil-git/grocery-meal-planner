@@ -3,7 +3,7 @@ import { sortAndGroupItems } from "@/lib/groceryOrder";
 import type { AisleDirectoryEntry, GroceryListItem } from "@/lib/types";
 
 function item(id: string, name: string): GroceryListItem {
-  return { id, item_name: name, quantity: null, source: "manual", walmart_item_id: null, added_at: "2026-08-09" };
+  return { id, item_name: name, quantity: null, source: "manual", walmart_item_id: null, added_at: "2026-08-09", picked_up: 0 };
 }
 
 function aisle(id: string, walk_order: number | null): AisleDirectoryEntry {

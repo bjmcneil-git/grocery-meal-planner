@@ -42,6 +42,7 @@ export interface GroceryListItem {
   source: "planned" | "manual" | "voice";
   walmart_item_id: string | null;
   added_at: string;
+  picked_up: number;
 }
 
 export interface AisleDirectoryEntry {
