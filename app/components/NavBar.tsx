@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
-  { href: "/", label: "This Week" },
-  { href: "/grocery-list", label: "List" },
-  { href: "/history", label: "History" },
+  { href: "/", label: "Meal Planner" },
   { href: "/recipes", label: "Recipes" },
-  { href: "/suggestions", label: "Suggest" },
+  { href: "/grocery-list", label: "Shopping List" },
+  { href: "/suggestions", label: "Suggestions" },
+  { href: "/history", label: "History" },
 ];
 
 export default function NavBar() {
@@ -19,7 +19,7 @@ export default function NavBar() {
         <Link
           key={link.href}
           href={link.href}
-          className={`text-xs px-2 py-1 ${
+          className={`text-xs px-1 py-1 text-center leading-tight ${
             pathname === link.href ? "font-bold text-pink-600" : "text-gray-500"
           }`}
         >
