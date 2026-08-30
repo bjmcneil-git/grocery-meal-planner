@@ -177,6 +177,12 @@ export default function GroceryListPage() {
     window.open(buildWalmartSearchUrl(itemName), "_blank");
   }
 
+  function confirmRemove(item: GroceryListItem) {
+    if (window.confirm(`Remove "${item.item_name}" from your list?`)) {
+      removeItem(item.id);
+    }
+  }
+
   async function handlePickAisle(name: string, aisleDirectoryId: string) {
     setSorting(true);
     try {
@@ -250,9 +256,9 @@ export default function GroceryListPage() {
         </button>
         <button
           type="button"
-          onClick={() => removeItem(item.id)}
+          onClick={() => confirmRemove(item)}
           aria-label={`Remove ${item.item_name}`}
-          className="shrink-0 text-red-500"
+          className="shrink-0 text-red-500 ml-2"
         >
           <TrashIcon />
         </button>
@@ -414,9 +420,9 @@ export default function GroceryListPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => confirmRemove(item)}
                       aria-label={`Remove ${item.item_name}`}
-                      className="shrink-0 text-red-500"
+                      className="shrink-0 text-red-500 ml-2"
                     >
                       <TrashIcon />
                     </button>
