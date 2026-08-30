@@ -4,6 +4,19 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { AisleDirectoryEntry, GroceryListItem } from "@/lib/types";
 import type { GroupedGroceryList } from "@/lib/groceryOrder";
+import { buildWalmartCartUrl } from "@/lib/walmartCart";
+
+interface WalmartResolvedItem {
+  id: string;
+  item_name: string;
+  quantity: number;
+  walmart_item_id: string;
+}
+
+interface WalmartUnresolvedItem {
+  id: string;
+  item_name: string;
+}
 
 interface Row {
   item: GroceryListItem;
@@ -36,6 +49,10 @@ export default function GroceryListPage() {
   const [editingQuantityId, setEditingQuantityId] = useState<string | null>(null);
   const [quantityDraft, setQuantityDraft] = useState("");
   const [completing, setCompleting] = useState(false);
+  const [walmartLoading, setWalmartLoading] = useState(false);
+  const [walmartResolved, setWalmartResolved] = useState<WalmartResolvedItem[]>([]);
+  const [walmartUnresolved, setWalmartUnresolved] = useState<WalmartUnresolvedItem[] | null>(null);
+  const [walmartDrafts, setWalmartDrafts] = useState<Record<string, string>>({});
 
   const allPickedUp = items.length > 0 && items.every((i) => i.picked_up);
 
@@ -153,6 +170,70 @@ export default function GroceryListPage() {
       setError("Failed to complete the list. Please try again.");
     } finally {
       setCompleting(false);
+    }
+  }
+
+  function openWalmartCart(resolved: WalmartResolvedItem[]) {
+    if (resolved.length === 0) return;
+    const url = buildWalmartCartUrl(
+      resolved.map((r) => ({ walmartItemId: r.walmart_item_id, quantity: r.quantity }))
+    );
+    window.open(url, "_blank");
+  }
+
+  async function handleSendToWalmart() {
+    setWalmartLoading(true);
+    try {
+      const res = await fetch("/api/grocery-list/walmart-cart");
+      if (!res.ok) throw new Error(`Failed to check Walmart links with status ${res.status}`);
+      const data: { resolved: WalmartResolvedItem[]; unresolved: WalmartUnresolvedItem[] } =
+        await res.json();
+      setWalmartResolved(data.resolved);
+      if (data.unresolved.length === 0) {
+        openWalmartCart(data.resolved);
+        setWalmartUnresolved(null);
+      } else {
+        setWalmartUnresolved(data.unresolved);
+        setWalmartDrafts({});
+      }
+      setError(null);
+    } catch {
+      setError("Failed to check Walmart links. Please try again.");
+    } finally {
+      setWalmartLoading(false);
+    }
+  }
+
+  async function handleConfirmWalmartLinks() {
+    if (!walmartUnresolved) return;
+    setWalmartLoading(true);
+    try {
+      const newlyResolved: WalmartResolvedItem[] = [];
+      for (const item of walmartUnresolved) {
+        const draft = walmartDrafts[item.id]?.trim();
+        if (!draft) continue;
+        const res = await fetch("/api/item-walmart-cache", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item_name: item.item_name, walmart_item_id: draft }),
+        });
+        if (!res.ok) continue;
+        const entry: { walmart_item_id: string } = await res.json();
+        const source = items.find((i) => i.id === item.id);
+        newlyResolved.push({
+          id: item.id,
+          item_name: item.item_name,
+          quantity: source?.quantity ?? 1,
+          walmart_item_id: entry.walmart_item_id,
+        });
+      }
+      openWalmartCart([...walmartResolved, ...newlyResolved]);
+      setWalmartUnresolved(null);
+      setError(null);
+    } catch {
+      setError("Failed to save Walmart links. Please try again.");
+    } finally {
+      setWalmartLoading(false);
     }
   }
 
@@ -289,10 +370,63 @@ export default function GroceryListPage() {
         <button
           onClick={handleShop}
           disabled={sorting}
-          className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm mb-4 disabled:opacity-50"
+          className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm mb-2 disabled:opacity-50"
         >
           {sorting ? "Sorting..." : "Let's go shopping"}
         </button>
+      )}
+
+      {!loading && items.length > 0 && (
+        <button
+          onClick={handleSendToWalmart}
+          disabled={walmartLoading}
+          className="w-full px-3 py-2 rounded border border-pink-600 text-pink-600 text-sm mb-4 disabled:opacity-50"
+        >
+          {walmartLoading ? "Checking..." : "Send to Walmart Cart"}
+        </button>
+      )}
+
+      {walmartUnresolved && (
+        <div className="border border-pink-200 bg-pink-50 rounded-lg p-3 mb-4">
+          <p className="text-sm font-medium text-pink-700 mb-2">
+            Paste a Walmart product link (or item #) for each item to include it:
+          </p>
+          <ul className="space-y-2 mb-3">
+            {walmartUnresolved.map((item) => (
+              <li key={item.id}>
+                <label className="text-xs text-gray-600">{item.item_name}</label>
+                <input
+                  className="w-full border rounded p-1.5 text-sm"
+                  placeholder="walmart.com/ip/... or item #"
+                  value={walmartDrafts[item.id] ?? ""}
+                  onChange={(e) =>
+                    setWalmartDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleConfirmWalmartLinks}
+              disabled={walmartLoading}
+              className="flex-1 px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
+            >
+              {walmartLoading ? "Opening..." : "Add to Cart"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setWalmartUnresolved(null)}
+              className="px-3 py-2 rounded border text-sm text-gray-600"
+            >
+              Cancel
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Skipped items won&rsquo;t be added, but you can search for them on Walmart yourself.
+          </p>
+        </div>
       )}
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}

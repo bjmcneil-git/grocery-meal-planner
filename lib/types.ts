@@ -58,3 +58,9 @@ export interface ItemAisleCacheEntry {
   matched_by: "ai" | "manual";
   matched_at: string;
 }
+
+export interface ItemWalmartCacheEntry {
+  item_name: string;
+  walmart_item_id: string;
+  cached_at: string;
+}

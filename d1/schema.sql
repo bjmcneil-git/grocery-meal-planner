@@ -58,3 +58,9 @@ CREATE TABLE item_aisle_cache (
   matched_by TEXT NOT NULL CHECK (matched_by IN ('ai', 'manual')),
   matched_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE item_walmart_cache (
+  item_name TEXT PRIMARY KEY,
+  walmart_item_id TEXT NOT NULL,
+  cached_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
