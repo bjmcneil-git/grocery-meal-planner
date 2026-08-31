@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CUISINES } from "@/lib/cuisines";
 
@@ -11,8 +11,22 @@ interface IngredientRow {
   unit: string;
 }
 
-export default function NewRecipePage() {
+// Android's share sheet doesn't have a dedicated "url" field for a plain
+// page share - Chrome sends the shared URL in `text` (sometimes alongside
+// other words), so pull the first URL-looking substring out of whatever
+// the share_target query params gave us.
+function extractUrl(...candidates: (string | null)[]): string | null {
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const match = candidate.match(/https?:\/\/\S+/);
+    if (match) return match[0];
+  }
+  return null;
+}
+
+function NewRecipePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [name, setName] = useState("");
   const [instructions, setInstructions] = useState("");
   const [cuisine, setCuisine] = useState("");
@@ -25,6 +39,7 @@ export default function NewRecipePage() {
   const [error, setError] = useState<string | null>(null);
   const [importUrl, setImportUrl] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   function updateIngredient(index: number, field: keyof IngredientRow, value: string) {
     setIngredients((rows) =>
@@ -32,28 +47,51 @@ export default function NewRecipePage() {
     );
   }
 
-  async function handleImport() {
+  async function handleImport(urlOverride?: string) {
+    const url = urlOverride ?? importUrl;
+    if (!url) return;
     setImportError(null);
-    const res = await fetch("/api/recipes/import", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: importUrl }),
-    });
-    const body = await res.json();
-    if (!res.ok) {
-      setImportError(body.error);
-      return;
+    setImporting(true);
+    try {
+      const res = await fetch("/api/recipes/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setImportError(body.error);
+        return;
+      }
+      setName(body.name);
+      setIngredients(
+        body.ingredients.map((text: string) => ({ ingredient_name: text, quantity: "", unit: "" }))
+      );
+      // Cuisine is left for you to pick manually — source sites' cuisine tags
+      // are often an unreliable site-wide default, not specific to the dish.
+      if (body.cookTimeMinutes) setCookTimeMinutes(String(body.cookTimeMinutes));
+      setImageUrl(body.image ?? null);
+      setSourceUrl(url);
+    } finally {
+      setImporting(false);
     }
-    setName(body.name);
-    setIngredients(
-      body.ingredients.map((text: string) => ({ ingredient_name: text, quantity: "", unit: "" }))
-    );
-    // Cuisine is left for you to pick manually — source sites' cuisine tags
-    // are often an unreliable site-wide default, not specific to the dish.
-    if (body.cookTimeMinutes) setCookTimeMinutes(String(body.cookTimeMinutes));
-    setImageUrl(body.image ?? null);
-    setSourceUrl(importUrl);
   }
+
+  // Handles being launched as the installed app's share target (see
+  // public/manifest.json) - Android puts the shared page's URL here when
+  // you tap "Share" from Pinterest's in-app browser or from Chrome.
+  useEffect(() => {
+    const shared = extractUrl(
+      searchParams.get("url"),
+      searchParams.get("text"),
+      searchParams.get("title")
+    );
+    if (shared) {
+      setImportUrl(shared);
+      handleImport(shared);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,8 +140,13 @@ export default function NewRecipePage() {
             value={importUrl}
             onChange={(e) => setImportUrl(e.target.value)}
           />
-          <button type="button" onClick={handleImport} className="bg-gray-800 text-white rounded px-3">
-            Import
+          <button
+            type="button"
+            onClick={() => handleImport()}
+            disabled={importing}
+            className="bg-gray-800 text-white rounded px-3 disabled:opacity-50"
+          >
+            {importing ? "Importing..." : "Import"}
           </button>
         </div>
         {importError && <p className="text-red-600 text-sm mt-1">{importError}</p>}
@@ -183,5 +226,13 @@ export default function NewRecipePage() {
         </button>
       </form>
     </main>
+  );
+}
+
+export default function NewRecipePage() {
+  return (
+    <Suspense fallback={null}>
+      <NewRecipePageInner />
+    </Suspense>
   );
 }

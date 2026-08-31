@@ -10,6 +10,14 @@ import { getUpcomingDays } from "@/lib/week";
 
 const DAYS_AHEAD = 14;
 
+function PinterestIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6" aria-hidden="true">
+      <path d="M12 0a12 12 0 0 0-4.37 23.17c-.06-.93-.11-2.36.02-3.38.12-.92.79-5.87.79-5.87s-.2-.4-.2-1c0-.93.54-1.63 1.21-1.63.57 0 .85.43.85.94 0 .57-.37 1.43-.55 2.23-.16.67.34 1.21 1 1.21 1.2 0 2.12-1.26 2.12-3.09 0-1.61-1.16-2.74-2.82-2.74-1.92 0-3.05 1.44-3.05 2.93 0 .58.22 1.2.5 1.54a.2.2 0 0 1 .05.19c-.05.22-.17.68-.2.78-.03.13-.1.16-.24.1-.9-.42-1.46-1.73-1.46-2.79 0-2.27 1.65-4.36 4.76-4.36 2.5 0 4.44 1.78 4.44 4.16 0 2.48-1.57 4.48-3.74 4.48-.73 0-1.42-.38-1.65-.83l-.45 1.72c-.16.63-.6 1.41-.9 1.89A12 12 0 1 0 12 0z" />
+    </svg>
+  );
+}
+
 function RecipesPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,7 +75,18 @@ function RecipesPageInner() {
     <main className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">Recipes</h1>
-        <Link href="/recipes/new" className="text-pink-600">+ Add</Link>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://www.pinterest.com/search/pins/?q=recipes"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Search Pinterest for recipes"
+            className="text-[#E60023]"
+          >
+            <PinterestIcon />
+          </a>
+          <Link href="/recipes/new" className="text-pink-600">+ Add</Link>
+        </div>
       </div>
 
       {isPicking && (
