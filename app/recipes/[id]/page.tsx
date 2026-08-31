@@ -10,6 +10,9 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
   const router = useRouter();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
 
   useEffect(() => {
     fetch(`/api/recipes/${params.id}`)
@@ -23,6 +26,34 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
   async function handleDelete() {
     await fetch(`/api/recipes/${params.id}`, { method: "DELETE" });
     router.push("/recipes");
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleAddSelected() {
+    const toAdd = ingredients.filter((ing) => selectedIds.has(ing.id));
+    if (toAdd.length === 0) return;
+    setAdding(true);
+    await Promise.all(
+      toAdd.map((ing) =>
+        fetch("/api/grocery-list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item_name: ing.ingredient_name, quantity: ing.quantity }),
+        })
+      )
+    );
+    setAdding(false);
+    setSelectedIds(new Set());
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 2000);
   }
 
   if (!recipe) return <main className="p-4">Loading...</main>;
@@ -48,13 +79,37 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
             .join(" · ")}
         </p>
       )}
-      <ul className="list-disc pl-5 mb-4 mt-2">
+      <ul className="mb-2 mt-2 space-y-1">
         {ingredients.map((ing) => (
-          <li key={ing.id}>
-            {ing.quantity ?? ""} {ing.unit ?? ""} {ing.ingredient_name}
+          <li key={ing.id} className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selectedIds.has(ing.id)}
+              onChange={() => toggleSelected(ing.id)}
+              aria-label={`Select ${ing.ingredient_name}`}
+              className="w-4 h-4 shrink-0 accent-pink-600"
+            />
+            <span>
+              {ing.quantity ?? ""} {ing.unit ?? ""} {ing.ingredient_name}
+            </span>
           </li>
         ))}
       </ul>
+      {ingredients.length > 0 && (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={handleAddSelected}
+            disabled={selectedIds.size === 0 || adding}
+            className="px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-40"
+          >
+            {adding
+              ? "Adding..."
+              : `Add${selectedIds.size > 0 ? ` ${selectedIds.size}` : ""} to List`}
+          </button>
+          {justAdded && <span className="ml-3 text-sm text-green-600">Added!</span>}
+        </div>
+      )}
       {recipe.instructions && <p className="mb-4 whitespace-pre-wrap">{recipe.instructions}</p>}
       {recipe.source_url && (
         <a
