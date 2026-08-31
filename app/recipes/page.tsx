@@ -9,6 +9,23 @@ import { formatCookTime } from "@/lib/formatCookTime";
 import { getUpcomingDays } from "@/lib/week";
 
 const DAYS_AHEAD = 14;
+const PINTEREST_SEARCH_URL = "https://www.pinterest.com/search/pins/?q=recipes";
+
+// Plain https links to pinterest.com get handed off to the installed
+// Pinterest app on Android. Its in-app browser shares a wrapped/internal
+// link for a pin's linked recipe page rather than the page's real URL, so
+// our importer gets Pinterest's page instead of the recipe and fails with
+// "no recipe data found" - the user only got it working by manually tapping
+// Pinterest's "open in Chrome" first. Forcing this link into Chrome via an
+// Android intent URL skips that step: browsing stays in real Chrome tabs
+// the whole time, so sharing a recipe page later gets its real URL.
+function pinterestHrefFor(userAgent: string): string {
+  if (/Android/i.test(userAgent)) {
+    const target = PINTEREST_SEARCH_URL.replace(/^https:\/\//, "");
+    return `intent://${target}#Intent;scheme=https;package=com.android.chrome;end`;
+  }
+  return PINTEREST_SEARCH_URL;
+}
 
 function PinterestIcon() {
   return (
@@ -32,11 +49,16 @@ function RecipesPageInner() {
   const [pickingDayFor, setPickingDayFor] = useState<string | null>(null);
   const [justAdded, setJustAdded] = useState<{ recipeId: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pinterestHref, setPinterestHref] = useState(PINTEREST_SEARCH_URL);
 
   useEffect(() => {
     fetch("/api/recipes")
       .then((r) => r.json())
       .then(setRecipes);
+  }, []);
+
+  useEffect(() => {
+    setPinterestHref(pinterestHrefFor(navigator.userAgent));
   }, []);
 
   async function addToDay(recipeId: string, planDate: string, label: string) {
@@ -77,7 +99,7 @@ function RecipesPageInner() {
         <h1 className="text-xl font-bold">Recipes</h1>
         <div className="flex items-center gap-3">
           <a
-            href="https://www.pinterest.com/search/pins/?q=recipes"
+            href={pinterestHref}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Search Pinterest for recipes"
