@@ -71,7 +71,10 @@ function NewRecipePageInner() {
       // are often an unreliable site-wide default, not specific to the dish.
       if (body.cookTimeMinutes) setCookTimeMinutes(String(body.cookTimeMinutes));
       setImageUrl(body.image ?? null);
-      setSourceUrl(url);
+      // For a Pinterest share link, the API resolves and returns the actual
+      // recipe page it points to - use that so "View Original Recipe" links
+      // to the recipe, not back to the Pinterest pin.
+      setSourceUrl(body.sourceUrl ?? url);
     } finally {
       setImporting(false);
     }
