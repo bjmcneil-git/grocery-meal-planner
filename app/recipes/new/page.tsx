@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CUISINES } from "@/lib/cuisines";
+import CropPanel from "./CropPanel";
 
 interface IngredientRow {
   ingredient_name: string;
@@ -51,6 +52,7 @@ function NewRecipePageInner() {
   const [screenshotImages, setScreenshotImages] = useState<string[]>([]);
   const [screenshotError, setScreenshotError] = useState<string | null>(null);
   const [screenshotImporting, setScreenshotImporting] = useState(false);
+  const [cropImages, setCropImages] = useState<string[] | null>(null);
 
   function updateIngredient(index: number, field: keyof IngredientRow, value: string) {
     setIngredients((rows) =>
@@ -204,9 +206,19 @@ function NewRecipePageInner() {
       }
       applyImportedFields(body);
       setSourceUrl(null);
+      setCropImages(screenshotImages);
     } finally {
       setScreenshotImporting(false);
     }
+  }
+
+  function handleCropped(dataUrl: string) {
+    setImageUrl(dataUrl);
+    setCropImages(null);
+  }
+
+  function handleSkipCrop() {
+    setCropImages(null);
   }
 
   // Handles being launched as the installed app's share target (see
@@ -361,6 +373,9 @@ function NewRecipePageInner() {
           </div>
         )}
       </div>
+      {cropImages && (
+        <CropPanel images={cropImages} onCropped={handleCropped} onSkip={handleSkipCrop} />
+      )}
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
           className="w-full border rounded p-2"
