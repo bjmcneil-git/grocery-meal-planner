@@ -47,6 +47,10 @@ export default function CropPanel({ images, onCropped, onSkip }: CropPanelProps)
   }
 
   function selectImage(index: number) {
+    if (index === selectedIndex) {
+      initBox();
+      return;
+    }
     setSelectedIndex(index);
     setBox(null);
   }
