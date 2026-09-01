@@ -48,6 +48,10 @@ function NewRecipePageInner() {
   const [textImportError, setTextImportError] = useState<string | null>(null);
   const [textImporting, setTextImporting] = useState(false);
 
+  const [screenshotImages, setScreenshotImages] = useState<string[]>([]);
+  const [screenshotError, setScreenshotError] = useState<string | null>(null);
+  const [screenshotImporting, setScreenshotImporting] = useState(false);
+
   function updateIngredient(index: number, field: keyof IngredientRow, value: string) {
     setIngredients((rows) =>
       rows.map((row, i) => (i === index ? { ...row, [field]: value } : row))
@@ -122,6 +126,86 @@ function NewRecipePageInner() {
       setSourceUrl(null);
     } finally {
       setTextImporting(false);
+    }
+  }
+
+  const MAX_SCREENSHOT_IMAGES = 5;
+  const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
+
+  function readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function addScreenshotFiles(files: File[]) {
+    setScreenshotError(null);
+    const accepted: string[] = [];
+    for (const file of files) {
+      if (screenshotImages.length + accepted.length >= MAX_SCREENSHOT_IMAGES) {
+        setScreenshotError(`You can attach up to ${MAX_SCREENSHOT_IMAGES} images`);
+        break;
+      }
+      if (!file.type.startsWith("image/")) {
+        setScreenshotError("Only image files are supported");
+        continue;
+      }
+      if (file.size > MAX_SCREENSHOT_BYTES) {
+        setScreenshotError("Each image must be under 5MB");
+        continue;
+      }
+      accepted.push(await readFileAsDataUrl(file));
+    }
+    if (accepted.length > 0) {
+      setScreenshotImages((imgs) => [...imgs, ...accepted]);
+    }
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    addScreenshotFiles(Array.from(e.target.files ?? []));
+    e.target.value = "";
+  }
+
+  function handleScreenshotPaste(e: React.ClipboardEvent) {
+    const files: File[] = [];
+    for (const item of Array.from(e.clipboardData.items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+    if (files.length > 0) {
+      e.preventDefault();
+      addScreenshotFiles(files);
+    }
+  }
+
+  function removeScreenshotImage(index: number) {
+    setScreenshotImages((imgs) => imgs.filter((_, i) => i !== index));
+  }
+
+  async function handleParseScreenshots() {
+    if (screenshotImages.length === 0) return;
+    setScreenshotError(null);
+    setScreenshotImporting(true);
+    try {
+      const res = await fetch("/api/recipes/parse-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images: screenshotImages }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setScreenshotError(body.error);
+        return;
+      }
+      applyImportedFields(body);
+      setSourceUrl(null);
+    } finally {
+      setScreenshotImporting(false);
     }
   }
 
@@ -233,6 +317,47 @@ function NewRecipePageInner() {
               {textImporting ? "Parsing..." : "Parse"}
             </button>
             {textImportError && <p className="text-red-600 text-sm mt-1">{textImportError}</p>}
+          </div>
+        )}
+
+        {activeTab === "screenshot" && (
+          <div onPaste={handleScreenshotPaste}>
+            <label className="inline-block bg-gray-800 text-white rounded px-3 py-1 cursor-pointer mb-2">
+              Choose screenshot(s)
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
+            </label>
+            <p className="text-xs text-gray-500 mb-2">or paste a copied image</p>
+            {screenshotImages.length > 0 && (
+              <div className="flex gap-2 flex-wrap mb-2">
+                {screenshotImages.map((src, i) => (
+                  <div key={i} className="relative">
+                    <img src={src} alt="" className="w-16 h-16 object-cover rounded border" />
+                    <button
+                      type="button"
+                      onClick={() => removeScreenshotImage(i)}
+                      className="absolute -top-2 -right-2 bg-gray-800 text-white rounded-full w-5 h-5 text-xs"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleParseScreenshots}
+              disabled={screenshotImporting || screenshotImages.length === 0}
+              className="bg-gray-800 text-white rounded px-3 py-1 disabled:opacity-50"
+            >
+              {screenshotImporting ? "Importing..." : "Import"}
+            </button>
+            {screenshotError && <p className="text-red-600 text-sm mt-1">{screenshotError}</p>}
           </div>
         )}
       </div>
