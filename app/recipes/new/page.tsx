@@ -37,14 +37,39 @@ function NewRecipePageInner() {
     { ingredient_name: "", quantity: "", unit: "" },
   ]);
   const [error, setError] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState<"url" | "text" | "screenshot">("url");
+
   const [importUrl, setImportUrl] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+
+  const [pasteText, setPasteText] = useState("");
+  const [textImportError, setTextImportError] = useState<string | null>(null);
+  const [textImporting, setTextImporting] = useState(false);
 
   function updateIngredient(index: number, field: keyof IngredientRow, value: string) {
     setIngredients((rows) =>
       rows.map((row, i) => (i === index ? { ...row, [field]: value } : row))
     );
+  }
+
+  function applyImportedFields(result: {
+    name: string;
+    ingredients: string[];
+    cookTimeMinutes?: number | null;
+    cuisine?: string | null;
+    instructions?: string | null;
+    image?: string | null;
+  }) {
+    setName(result.name);
+    setIngredients(
+      result.ingredients.map((text) => ({ ingredient_name: text, quantity: "", unit: "" }))
+    );
+    if (result.cookTimeMinutes) setCookTimeMinutes(String(result.cookTimeMinutes));
+    if (result.cuisine) setCuisine(result.cuisine);
+    if (result.instructions) setInstructions(result.instructions);
+    if (result.image) setImageUrl(result.image);
   }
 
   async function handleImport(urlOverride?: string) {
@@ -63,20 +88,40 @@ function NewRecipePageInner() {
         setImportError(body.error);
         return;
       }
-      setName(body.name);
-      setIngredients(
-        body.ingredients.map((text: string) => ({ ingredient_name: text, quantity: "", unit: "" }))
-      );
-      // Cuisine is left for you to pick manually — source sites' cuisine tags
-      // are often an unreliable site-wide default, not specific to the dish.
-      if (body.cookTimeMinutes) setCookTimeMinutes(String(body.cookTimeMinutes));
-      setImageUrl(body.image ?? null);
+      applyImportedFields({
+        name: body.name,
+        ingredients: body.ingredients,
+        cookTimeMinutes: body.cookTimeMinutes,
+        image: body.image,
+      });
       // For a Pinterest share link, the API resolves and returns the actual
       // recipe page it points to - use that so "View Original Recipe" links
       // to the recipe, not back to the Pinterest pin.
       setSourceUrl(body.sourceUrl ?? url);
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function handleParseText() {
+    if (!pasteText.trim()) return;
+    setTextImportError(null);
+    setTextImporting(true);
+    try {
+      const res = await fetch("/api/recipes/parse-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: pasteText }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setTextImportError(body.error);
+        return;
+      }
+      applyImportedFields(body);
+      setSourceUrl(null);
+    } finally {
+      setTextImporting(false);
     }
   }
 
@@ -135,24 +180,61 @@ function NewRecipePageInner() {
       </Link>
       <h1 className="text-xl font-bold mb-4">Add Recipe</h1>
       <div className="mb-4 p-3 border rounded bg-gray-50">
-        <p className="font-medium mb-1">Import from a URL</p>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 border rounded p-2"
-            placeholder="https://example.com/recipe"
-            value={importUrl}
-            onChange={(e) => setImportUrl(e.target.value)}
-          />
-          <button
-            type="button"
-            onClick={() => handleImport()}
-            disabled={importing}
-            className="bg-gray-800 text-white rounded px-3 disabled:opacity-50"
-          >
-            {importing ? "Importing..." : "Import"}
-          </button>
+        <div className="flex gap-3 mb-2 text-sm">
+          {(["url", "text", "screenshot"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={activeTab === tab ? "font-bold text-pink-600" : "text-gray-500"}
+            >
+              {tab === "url" ? "URL" : tab === "text" ? "Paste Text" : "Screenshot"}
+            </button>
+          ))}
         </div>
-        {importError && <p className="text-red-600 text-sm mt-1">{importError}</p>}
+
+        {activeTab === "url" && (
+          <div>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 border rounded p-2"
+                placeholder="https://example.com/recipe"
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => handleImport()}
+                disabled={importing}
+                className="bg-gray-800 text-white rounded px-3 disabled:opacity-50"
+              >
+                {importing ? "Importing..." : "Import"}
+              </button>
+            </div>
+            {importError && <p className="text-red-600 text-sm mt-1">{importError}</p>}
+          </div>
+        )}
+
+        {activeTab === "text" && (
+          <div>
+            <textarea
+              className="w-full border rounded p-2 mb-2"
+              rows={5}
+              placeholder="Paste the recipe text here"
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={handleParseText}
+              disabled={textImporting || !pasteText.trim()}
+              className="bg-gray-800 text-white rounded px-3 py-1 disabled:opacity-50"
+            >
+              {textImporting ? "Parsing..." : "Parse"}
+            </button>
+            {textImportError && <p className="text-red-600 text-sm mt-1">{textImportError}</p>}
+          </div>
+        )}
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
