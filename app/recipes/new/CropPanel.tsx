@@ -17,6 +17,7 @@ interface CropPanelProps {
 
 const HANDLE_SIZE = 16;
 const MIN_BOX_SIZE = 20;
+const MAX_CROP_OUTPUT = 1024;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -98,17 +99,20 @@ export default function CropPanel({ images, onCropped, onSkip }: CropPanelProps)
     if (!img || !box) return;
     const scaleX = img.naturalWidth / img.clientWidth;
     const scaleY = img.naturalHeight / img.clientHeight;
+    const sourceWidth = box.width * scaleX;
+    const sourceHeight = box.height * scaleY;
+    const outputScale = Math.min(1, MAX_CROP_OUTPUT / Math.max(sourceWidth, sourceHeight));
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(box.width * scaleX);
-    canvas.height = Math.round(box.height * scaleY);
+    canvas.width = Math.round(sourceWidth * outputScale);
+    canvas.height = Math.round(sourceHeight * outputScale);
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(
       img,
       box.x * scaleX,
       box.y * scaleY,
-      box.width * scaleX,
-      box.height * scaleY,
+      sourceWidth,
+      sourceHeight,
       0,
       0,
       canvas.width,

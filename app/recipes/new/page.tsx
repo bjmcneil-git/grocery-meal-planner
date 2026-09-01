@@ -104,6 +104,8 @@ function NewRecipePageInner() {
       // recipe page it points to - use that so "View Original Recipe" links
       // to the recipe, not back to the Pinterest pin.
       setSourceUrl(body.sourceUrl ?? url);
+    } catch {
+      setImportError("Something went wrong importing that recipe. Please try again.");
     } finally {
       setImporting(false);
     }
@@ -126,6 +128,8 @@ function NewRecipePageInner() {
       }
       applyImportedFields(body);
       setSourceUrl(null);
+    } catch {
+      setTextImportError("Something went wrong parsing that text. Please try again.");
     } finally {
       setTextImporting(false);
     }
@@ -133,13 +137,30 @@ function NewRecipePageInner() {
 
   const MAX_SCREENSHOT_IMAGES = 5;
   const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
+  const MAX_IMAGE_DIMENSION = 1568;
 
-  function readFileAsDataUrl(file: File): Promise<string> {
+  function downscaleImage(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(
+          1,
+          MAX_IMAGE_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight)
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.naturalWidth * scale);
+        canvas.height = Math.round(img.naturalHeight * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Could not get canvas context"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = () => reject(new Error("Could not load image"));
+      img.src = URL.createObjectURL(file);
     });
   }
 
@@ -159,7 +180,7 @@ function NewRecipePageInner() {
         setScreenshotError("Each image must be under 5MB");
         continue;
       }
-      accepted.push(await readFileAsDataUrl(file));
+      accepted.push(await downscaleImage(file));
     }
     if (accepted.length > 0) {
       setScreenshotImages((imgs) => [...imgs, ...accepted]);
@@ -207,6 +228,8 @@ function NewRecipePageInner() {
       applyImportedFields(body);
       setSourceUrl(null);
       setCropImages(screenshotImages);
+    } catch {
+      setScreenshotError("Something went wrong importing those screenshots. Please try again.");
     } finally {
       setScreenshotImporting(false);
     }

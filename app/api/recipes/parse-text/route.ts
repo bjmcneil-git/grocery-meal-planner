@@ -6,6 +6,12 @@ export async function POST(req: NextRequest) {
   if (!text || typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "Missing text" }, { status: 400 });
   }
+  if (text.length > 100000) {
+    return NextResponse.json(
+      { error: "That text is too long — try pasting a shorter excerpt" },
+      { status: 400 }
+    );
+  }
 
   const result = await fetchRecipeExtraction([{ type: "text", text }]);
   if (!result) {
