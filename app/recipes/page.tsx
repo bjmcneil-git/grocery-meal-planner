@@ -10,11 +10,35 @@ import { getUpcomingDays } from "@/lib/week";
 
 const DAYS_AHEAD = 14;
 const PINTEREST_SEARCH_URL = "https://www.pinterest.com/search/pins/?q=recipes";
+const GOOGLE_SEARCH_URL = "https://www.google.com/search?q=recipes";
 
 function PinterestIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6" aria-hidden="true">
       <path d="M12 0a12 12 0 0 0-4.37 23.17c-.06-.93-.11-2.36.02-3.38.12-.92.79-5.87.79-5.87s-.2-.4-.2-1c0-.93.54-1.63 1.21-1.63.57 0 .85.43.85.94 0 .57-.37 1.43-.55 2.23-.16.67.34 1.21 1 1.21 1.2 0 2.12-1.26 2.12-3.09 0-1.61-1.16-2.74-2.82-2.74-1.92 0-3.05 1.44-3.05 2.93 0 .58.22 1.2.5 1.54a.2.2 0 0 1 .05.19c-.05.22-.17.68-.2.78-.03.13-.1.16-.24.1-.9-.42-1.46-1.73-1.46-2.79 0-2.27 1.65-4.36 4.76-4.36 2.5 0 4.44 1.78 4.44 4.16 0 2.48-1.57 4.48-3.74 4.48-.73 0-1.42-.38-1.65-.83l-.45 1.72c-.16.63-.6 1.41-.9 1.89A12 12 0 1 0 12 0z" />
+    </svg>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="w-6 h-6" aria-hidden="true">
+      <path
+        fill="#FFC107"
+        d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12 c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24 c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039 l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36 c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571 c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
+      />
     </svg>
   );
 }
@@ -77,6 +101,14 @@ function RecipesPageInner() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">Recipes</h1>
         <div className="flex items-center gap-3">
+          <a
+            href={GOOGLE_SEARCH_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Search Google for recipes"
+          >
+            <GoogleIcon />
+          </a>
           <a
             href={PINTEREST_SEARCH_URL}
             target="_blank"
