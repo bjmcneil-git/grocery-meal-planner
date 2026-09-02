@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Recipe } from "@/lib/types";
-import { CUISINES } from "@/lib/cuisines";
 import { formatCookTime } from "@/lib/formatCookTime";
 import { getUpcomingDays } from "@/lib/week";
 
@@ -54,6 +53,7 @@ function RecipesPageInner() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [query, setQuery] = useState("");
   const [cuisine, setCuisine] = useState<string>("All");
+  const [cuisineOptions, setCuisineOptions] = useState<string[]>([]);
   const [pickingDayFor, setPickingDayFor] = useState<string | null>(null);
   const [justAdded, setJustAdded] = useState<{ recipeId: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +62,9 @@ function RecipesPageInner() {
     fetch("/api/recipes")
       .then((r) => r.json())
       .then(setRecipes);
+    fetch("/api/cuisines")
+      .then((r) => r.json())
+      .then(setCuisineOptions);
   }, []);
 
   async function addToDay(recipeId: string, planDate: string, label: string) {
@@ -138,7 +141,7 @@ function RecipesPageInner() {
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="flex flex-wrap gap-2 mb-4">
-        {["All", ...CUISINES].map((c) => (
+        {["All", ...cuisineOptions].map((c) => (
           <button
             key={c}
             type="button"

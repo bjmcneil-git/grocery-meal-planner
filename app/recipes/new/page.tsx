@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CUISINES } from "@/lib/cuisines";
+import CuisineSelect from "@/app/components/CuisineSelect";
 import CropPanel from "./CropPanel";
 
 interface IngredientRow {
@@ -407,18 +407,7 @@ function NewRecipePageInner() {
           onChange={(e) => setName(e.target.value)}
         />
         <div className="flex gap-2">
-          <select
-            className="flex-1 border rounded p-2"
-            value={cuisine}
-            onChange={(e) => setCuisine(e.target.value)}
-          >
-            <option value="">Cuisine (optional)</option>
-            {CUISINES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <CuisineSelect value={cuisine} onChange={setCuisine} className="flex-1 border rounded p-2" />
           <input
             className="w-32 border rounded p-2"
             type="number"

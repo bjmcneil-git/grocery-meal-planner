@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Recipe } from "@/lib/types";
-import { CUISINES } from "@/lib/cuisines";
+import CuisineSelect from "@/app/components/CuisineSelect";
 
 export default function EditRecipePage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -55,18 +55,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <select
-          className="w-full border rounded p-2"
-          value={cuisine}
-          onChange={(e) => setCuisine(e.target.value)}
-        >
-          <option value="">Cuisine (optional)</option>
-          {CUISINES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        <CuisineSelect value={cuisine} onChange={setCuisine} />
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <button type="submit" className="w-full bg-pink-600 text-white rounded p-2">
           Save Changes
