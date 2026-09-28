@@ -223,13 +223,27 @@ export default function GroceryListPage() {
     setSelectedIds(allSelected ? new Set() : new Set(items.map((i) => i.id)));
   }
 
-  async function deleteSelected() {
+  function deleteSelected() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     if (!window.confirm(`Delete ${pluralItems(ids.length)} from your list?`)) return;
+    exitSelectMode();
+    return deleteItems(ids);
+  }
+
+  function deleteChecked() {
+    const ids = items.filter((i) => i.picked_up).map((i) => i.id);
+    if (ids.length === 0) return;
+    const message =
+      `Delete the ${pluralItems(ids.length)} you checked off? ` +
+      `They won't be saved to History.`;
+    if (!window.confirm(message)) return;
+    return deleteItems(ids);
+  }
+
+  async function deleteItems(ids: string[]) {
     setDeleting(true);
     removeItemsLocally(new Set(ids));
-    exitSelectMode();
     try {
       const res = await fetch("/api/grocery-list", {
         method: "DELETE",
@@ -280,6 +294,20 @@ export default function GroceryListPage() {
         {a.code} — {a.categories}
       </option>
     ));
+  }
+
+  function renderDeleteCheckedButton(count: number) {
+    return (
+      <button
+        type="button"
+        onClick={deleteChecked}
+        disabled={finishing || deleting}
+        className="w-full mt-2 px-3 py-2 rounded border border-red-500 text-red-500 text-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+      >
+        <TrashIcon />
+        {deleting ? "Deleting..." : `Delete ${pluralItems(count)} checked off`}
+      </button>
+    );
   }
 
   function renderSelectableRow(row: Row) {
@@ -450,16 +478,19 @@ export default function GroceryListPage() {
               {pickedUnmatched.map((r) => renderRow(r, showAisleCode, true))}
             </ul>
             {!selecting && !allPickedUp && (
-              <button
-                type="button"
-                onClick={handleFinishShopping}
-                disabled={finishing}
-                className="w-full mt-3 px-3 py-2 rounded border border-pink-600 text-pink-600 text-sm disabled:opacity-50"
-              >
-                {finishing
-                  ? "Finishing..."
-                  : `Finish shopping — remove ${pluralItems(pickedTotal)} checked off`}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleFinishShopping}
+                  disabled={finishing || deleting}
+                  className="w-full mt-3 px-3 py-2 rounded border border-pink-600 text-pink-600 text-sm disabled:opacity-50"
+                >
+                  {finishing
+                    ? "Finishing..."
+                    : `Finish shopping — remove ${pluralItems(pickedTotal)} checked off`}
+                </button>
+                {renderDeleteCheckedButton(pickedTotal)}
+              </>
             )}
           </div>
         )}
@@ -503,9 +534,10 @@ export default function GroceryListPage() {
             onClick={deleteSelected}
             disabled={selectedIds.size === 0 || deleting}
             aria-label={`Delete ${pluralItems(selectedIds.size)}`}
-            className="ml-1 p-2 rounded bg-red-500 text-white disabled:opacity-40"
+            className="ml-1 px-2 py-1.5 rounded bg-red-500 text-white text-sm flex items-center gap-1 disabled:opacity-40"
           >
             <TrashIcon />
+            Delete
           </button>
         </div>
       ) : (
@@ -527,11 +559,12 @@ export default function GroceryListPage() {
           <p className="text-sm text-pink-700 mb-2">Everything&rsquo;s picked up!</p>
           <button
             onClick={handleFinishShopping}
-            disabled={finishing}
+            disabled={finishing || deleting}
             className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
           >
             {finishing ? "Finishing..." : "Finish shopping"}
           </button>
+          {renderDeleteCheckedButton(pickedCount)}
         </div>
       )}
 
