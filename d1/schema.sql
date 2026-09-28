@@ -58,3 +58,10 @@ CREATE TABLE item_aisle_cache (
   matched_by TEXT NOT NULL CHECK (matched_by IN ('ai', 'manual')),
   matched_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE feedback (
+  id TEXT PRIMARY KEY,
+  message TEXT NOT NULL,
+  page TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

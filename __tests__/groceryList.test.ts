@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { addGroceryItem, findMatchingGroceryItems } from "@/lib/groceryList";
+import { addGroceryItem, deleteGroceryItems, findMatchingGroceryItems } from "@/lib/groceryList";
 import type { GroceryListItem } from "@/lib/types";
 
 describe("findMatchingGroceryItems", () => {
@@ -76,5 +76,61 @@ describe("addGroceryItem", () => {
     const body = JSON.parse(options.body);
     expect(body.sql).toContain("INSERT INTO grocery_list");
     expect(body.params).toEqual([expect.any(String), "milk", 2, "voice"]);
+  });
+});
+
+describe("deleteGroceryItems", () => {
+  const originalFetch = global.fetch;
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = "acc";
+    process.env.CLOUDFLARE_D1_DATABASE_ID = "db";
+    process.env.CLOUDFLARE_API_TOKEN = "token";
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env = { ...originalEnv };
+  });
+
+  function mockFetch() {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, errors: [], result: [{ results: [] }] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+  }
+
+  it("deletes all the given ids in one query", async () => {
+    const fetchMock = mockFetch();
+
+    await deleteGroceryItems(["a", "b", "c"]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.sql).toBe("DELETE FROM grocery_list WHERE id IN (?, ?, ?)");
+    expect(body.params).toEqual(["a", "b", "c"]);
+  });
+
+  it("splits more than 100 ids into batches", async () => {
+    const fetchMock = mockFetch();
+    const ids = Array.from({ length: 250 }, (_, i) => `id-${i}`);
+
+    await deleteGroceryItems(ids);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const batches = fetchMock.mock.calls.map(([, options]) => JSON.parse(options.body).params);
+    expect(batches.map((b: string[]) => b.length)).toEqual([100, 100, 50]);
+    expect(batches.flat()).toEqual(ids);
+  });
+
+  it("does nothing for an empty list", async () => {
+    const fetchMock = mockFetch();
+
+    await deleteGroceryItems([]);
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
