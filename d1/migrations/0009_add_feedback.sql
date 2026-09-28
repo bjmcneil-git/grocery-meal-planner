@@ -1,4 +1,4 @@
-CREATE TABLE feedback (
+CREATE TABLE IF NOT EXISTS feedback (
   id TEXT PRIMARY KEY,
   message TEXT NOT NULL,
   page TEXT,

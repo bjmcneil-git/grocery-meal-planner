@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
+import { ensureFeedbackTable } from "@/lib/feedback";
 import type { FeedbackNote } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 const MAX_MESSAGE_LENGTH = 2000;
 
 export async function GET() {
+  await ensureFeedbackTable();
   const notes = await d1Query<FeedbackNote>(
     "SELECT * FROM feedback ORDER BY created_at DESC, id DESC"
   );
@@ -27,6 +29,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  await ensureFeedbackTable();
   const [note] = await d1Query<FeedbackNote>(
     "INSERT INTO feedback (id, message, page) VALUES (?, ?, ?) RETURNING *",
     [randomUUID(), text, typeof page === "string" ? page : null]
