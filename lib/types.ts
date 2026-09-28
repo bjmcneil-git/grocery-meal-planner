@@ -58,3 +58,10 @@ export interface ItemAisleCacheEntry {
   matched_by: "ai" | "manual";
   matched_at: string;
 }
+
+export interface FeedbackNote {
+  id: string;
+  message: string;
+  page: string | null;
+  created_at: string;
+}

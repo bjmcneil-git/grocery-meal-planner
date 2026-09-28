@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
-import { addGroceryItem } from "@/lib/groceryList";
+import { addGroceryItem, deleteGroceryItems } from "@/lib/groceryList";
 import type { GroceryListItem } from "@/lib/types";
 
 export async function GET() {
@@ -18,4 +18,18 @@ export async function POST(req: NextRequest) {
 
   const item = await addGroceryItem(item_name, quantity ?? null, "manual");
   return NextResponse.json(item, { status: 201 });
+}
+
+export async function DELETE(req: NextRequest) {
+  const { ids } = await req.json();
+  if (
+    !Array.isArray(ids) ||
+    ids.length === 0 ||
+    !ids.every((id) => typeof id === "string")
+  ) {
+    return NextResponse.json({ error: "ids must be a non-empty array of strings" }, { status: 400 });
+  }
+
+  await deleteGroceryItems(ids);
+  return NextResponse.json({ ok: true, deleted: ids.length });
 }

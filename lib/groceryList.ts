@@ -17,6 +17,17 @@ export async function addGroceryItem(
   return item;
 }
 
+// D1 caps bound parameters per query at 100, so large deletes go in batches.
+const DELETE_BATCH_SIZE = 100;
+
+export async function deleteGroceryItems(ids: string[]): Promise<void> {
+  for (let i = 0; i < ids.length; i += DELETE_BATCH_SIZE) {
+    const batch = ids.slice(i, i + DELETE_BATCH_SIZE);
+    const placeholders = batch.map(() => "?").join(", ");
+    await d1Query(`DELETE FROM grocery_list WHERE id IN (${placeholders})`, batch);
+  }
+}
+
 export function findMatchingGroceryItems(spokenName: string, items: GroceryListItem[]): GroceryListItem[] {
   const normalized = normalizeItemName(spokenName);
   if (!normalized) return [];

@@ -41,6 +41,10 @@ function CartIcon() {
   );
 }
 
+function pluralItems(n: number): string {
+  return `${n} item${n === 1 ? "" : "s"}`;
+}
+
 export default function GroceryListPage() {
   const [items, setItems] = useState<GroceryListItem[]>([]);
   const [itemName, setItemName] = useState("");
@@ -52,18 +56,31 @@ export default function GroceryListPage() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingQuantityId, setEditingQuantityId] = useState<string | null>(null);
   const [quantityDraft, setQuantityDraft] = useState("");
-  const [completing, setCompleting] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
-  const allPickedUp = items.length > 0 && items.every((i) => i.picked_up);
+  const pickedCount = items.filter((i) => i.picked_up).length;
+  const allPickedUp = items.length > 0 && pickedCount === items.length;
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
 
-  useEffect(() => {
-    fetch("/api/grocery-list")
+  function loadItems() {
+    return fetch("/api/grocery-list")
       .then((r) => r.json())
       .then((data) => {
         setItems(data);
         setLoading(false);
       });
+  }
+
+  useEffect(() => {
+    loadItems();
   }, []);
+
+  useEffect(() => {
+    if (items.length === 0) exitSelectMode();
+  }, [items.length]);
 
   async function addItem(e: React.FormEvent) {
     e.preventDefault();
@@ -80,16 +97,20 @@ export default function GroceryListPage() {
     setItemName("");
   }
 
-  async function removeItem(id: string) {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  function removeItemsLocally(ids: Set<string>) {
+    setItems((prev) => prev.filter((i) => !ids.has(i.id)));
     setGrouped((prev) =>
       prev
         ? {
-            sorted: prev.sorted.filter((g) => g.item.id !== id),
-            unmatched: prev.unmatched.filter((g) => g.item.id !== id),
+            sorted: prev.sorted.filter((g) => !ids.has(g.item.id)),
+            unmatched: prev.unmatched.filter((g) => !ids.has(g.item.id)),
           }
         : null
     );
+  }
+
+  async function removeItem(id: string) {
+    removeItemsLocally(new Set([id]));
     await fetch(`/api/grocery-list/${id}`, { method: "DELETE" });
   }
 
@@ -158,18 +179,85 @@ export default function GroceryListPage() {
     }
   }
 
-  async function handleCompleteList() {
-    setCompleting(true);
+  async function handleFinishShopping() {
+    if (pickedCount === 0) return;
+    const message =
+      `Finish shopping? This removes the ${pluralItems(pickedCount)} you checked off ` +
+      `and saves them to History.`;
+    if (!window.confirm(message)) return;
+    setFinishing(true);
     try {
       const res = await fetch("/api/grocery-list/complete", { method: "POST" });
-      if (!res.ok) throw new Error(`Failed to complete list with status ${res.status}`);
-      setItems([]);
-      setGrouped(null);
+      if (!res.ok) throw new Error(`Failed to finish shopping with status ${res.status}`);
+      removeItemsLocally(new Set(items.filter((i) => i.picked_up).map((i) => i.id)));
       setError(null);
     } catch {
-      setError("Failed to complete the list. Please try again.");
+      setError("Failed to finish shopping. Please try again.");
     } finally {
-      setCompleting(false);
+      setFinishing(false);
+    }
+  }
+
+  function enterSelectMode() {
+    setSelecting(true);
+    setSelectedIds(new Set());
+    setEditingItemId(null);
+    setEditingQuantityId(null);
+  }
+
+  function exitSelectMode() {
+    setSelecting(false);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(items.map((i) => i.id)));
+  }
+
+  function deleteSelected() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${pluralItems(ids.length)} from your list?`)) return;
+    exitSelectMode();
+    return deleteItems(ids);
+  }
+
+  function deleteChecked() {
+    const ids = items.filter((i) => i.picked_up).map((i) => i.id);
+    if (ids.length === 0) return;
+    const message =
+      `Delete the ${pluralItems(ids.length)} you checked off? ` +
+      `They won't be saved to History.`;
+    if (!window.confirm(message)) return;
+    return deleteItems(ids);
+  }
+
+  async function deleteItems(ids: string[]) {
+    setDeleting(true);
+    removeItemsLocally(new Set(ids));
+    try {
+      const res = await fetch("/api/grocery-list", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error(`Failed to delete items with status ${res.status}`);
+      setError(null);
+    } catch {
+      setError("Failed to delete those items. Please try again.");
+      setGrouped(null);
+      await loadItems();
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -200,75 +288,170 @@ export default function GroceryListPage() {
     }
   }
 
-  function renderRow(row: Row, showAisleCode: boolean) {
-    const { item, aisleCode } = row;
+  function renderAisleOptions() {
+    return aisleOptions.map((a) => (
+      <option key={a.id} value={a.id}>
+        {a.code} — {a.categories}
+      </option>
+    ));
+  }
+
+  function renderDeleteCheckedButton(count: number) {
+    return (
+      <button
+        type="button"
+        onClick={deleteChecked}
+        disabled={finishing || deleting}
+        className="w-full mt-2 px-3 py-2 rounded border border-red-500 text-red-500 text-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+      >
+        <TrashIcon />
+        {deleting ? "Deleting..." : `Delete ${pluralItems(count)} checked off`}
+      </button>
+    );
+  }
+
+  function renderSelectableRow(row: Row) {
+    const { item } = row;
+    const selected = selectedIds.has(item.id);
     const picked = !!item.picked_up;
     return (
-      <li key={item.id} className={`flex items-center gap-3 py-2 ${picked ? "opacity-50" : ""}`}>
-        <input
-          type="checkbox"
-          checked={picked}
-          onChange={(e) => togglePicked(item.id, e.target.checked)}
-          aria-label={`Mark ${item.item_name} as picked up`}
-          className="w-5 h-5 shrink-0 accent-pink-600"
-        />
-        {showAisleCode && (
-          <button
-            type="button"
-            onClick={() => setEditingItemId((cur) => (cur === item.id ? null : item.id))}
-            className="w-10 shrink-0 text-left text-xs font-mono text-gray-500"
-          >
-            {aisleCode ?? "—"}
-          </button>
-        )}
-        <span className={`flex-1 ${picked ? "line-through text-gray-400" : ""}`}>
-          {item.item_name}
-        </span>
-        {editingQuantityId === item.id ? (
+      <li key={item.id}>
+        <label
+          className={`flex items-center gap-3 py-2 cursor-pointer ${selected ? "bg-pink-50" : ""}`}
+        >
           <input
-            type="number"
-            autoFocus
-            className="w-14 border rounded p-1 text-sm text-right"
-            value={quantityDraft}
-            onChange={(e) => setQuantityDraft(e.target.value)}
-            onBlur={() => saveQuantity(item.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") saveQuantity(item.id);
-              if (e.key === "Escape") setEditingQuantityId(null);
-            }}
+            type="checkbox"
+            checked={selected}
+            onChange={() => toggleSelected(item.id)}
+            aria-label={`Select ${item.item_name}`}
+            className="w-5 h-5 shrink-0 accent-red-500"
           />
-        ) : (
-          <button
-            type="button"
-            onClick={() => startEditQuantity(item.id, item.quantity)}
-            className="text-sm text-gray-500 min-w-[2.5rem] text-right"
-          >
-            {item.quantity != null ? item.quantity : "+ qty"}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => buyOnWalmart(item.item_name)}
-          aria-label={`Buy ${item.item_name} on Walmart`}
-          className="shrink-0 text-pink-600"
-        >
-          <CartIcon />
-        </button>
-        <button
-          type="button"
-          onClick={() => confirmRemove(item)}
-          aria-label={`Remove ${item.item_name}`}
-          className="shrink-0 text-red-500 ml-2"
-        >
-          <TrashIcon />
-        </button>
+          <span className={`flex-1 ${picked ? "line-through text-gray-400" : ""}`}>
+            {item.item_name}
+          </span>
+          {item.quantity != null && (
+            <span className="text-sm text-gray-500 min-w-[2.5rem] text-right">
+              {item.quantity}
+            </span>
+          )}
+        </label>
       </li>
     );
   }
 
-  function renderSections(rows: Row[], showAisleCode: boolean) {
-    const toPickUp = rows.filter((r) => !r.item.picked_up);
-    const pickedUp = rows.filter((r) => r.item.picked_up);
+  function renderRow(row: Row, showAisleCode: boolean, unmatched = false) {
+    if (selecting) return renderSelectableRow(row);
+    const { item, aisleCode } = row;
+    const picked = !!item.picked_up;
+    const editingAisle = showAisleCode && !unmatched && editingItemId === item.id;
+    return (
+      <li key={item.id} className={picked ? "opacity-50" : ""}>
+        <div className="flex items-center gap-3 py-2">
+          <input
+            type="checkbox"
+            checked={picked}
+            onChange={(e) => togglePicked(item.id, e.target.checked)}
+            aria-label={`Mark ${item.item_name} as picked up`}
+            className="w-5 h-5 shrink-0 accent-pink-600"
+          />
+          {showAisleCode && !unmatched && (
+            <button
+              type="button"
+              onClick={() => setEditingItemId((cur) => (cur === item.id ? null : item.id))}
+              className="w-10 shrink-0 text-left text-xs font-mono text-gray-500"
+            >
+              {aisleCode ?? "—"}
+            </button>
+          )}
+          <span className={`flex-1 ${picked ? "line-through text-gray-400" : ""}`}>
+            {item.item_name}
+          </span>
+          {unmatched && (
+            <select
+              className="border rounded text-xs p-1 max-w-[7rem]"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) handlePickAisle(item.item_name, e.target.value);
+              }}
+            >
+              <option value="" disabled>
+                Pick aisle...
+              </option>
+              {renderAisleOptions()}
+            </select>
+          )}
+          {editingQuantityId === item.id ? (
+            <input
+              type="number"
+              autoFocus
+              className="w-14 border rounded p-1 text-sm text-right"
+              value={quantityDraft}
+              onChange={(e) => setQuantityDraft(e.target.value)}
+              onBlur={() => saveQuantity(item.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveQuantity(item.id);
+                if (e.key === "Escape") setEditingQuantityId(null);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => startEditQuantity(item.id, item.quantity)}
+              className="text-sm text-gray-500 min-w-[2.5rem] text-right"
+            >
+              {item.quantity != null ? item.quantity : "+ qty"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => buyOnWalmart(item.item_name)}
+            aria-label={`Buy ${item.item_name} on Walmart`}
+            className="shrink-0 text-pink-600"
+          >
+            <CartIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => confirmRemove(item)}
+            aria-label={`Remove ${item.item_name}`}
+            className="shrink-0 text-red-500 ml-2"
+          >
+            <TrashIcon />
+          </button>
+        </div>
+        {editingAisle && grouped && (
+          <div className="pl-8 pb-2">
+            <select
+              className="border rounded text-xs p-1 w-full"
+              value={grouped.sorted.find((g) => g.item.id === item.id)?.aisle?.id ?? ""}
+              onChange={(e) => {
+                if (e.target.value) {
+                  handlePickAisle(item.item_name, e.target.value);
+                  setEditingItemId(null);
+                }
+              }}
+            >
+              {renderAisleOptions()}
+            </select>
+          </div>
+        )}
+      </li>
+    );
+  }
+
+  function renderList() {
+    const sortedRows: Row[] = grouped
+      ? grouped.sorted.map(({ item, aisle }) => ({ item, aisleCode: aisle?.code }))
+      : items.map((item) => ({ item }));
+    const unmatchedRows: Row[] = grouped ? grouped.unmatched.map(({ item }) => ({ item })) : [];
+    const showAisleCode = !!grouped;
+
+    const toPickUp = sortedRows.filter((r) => !r.item.picked_up);
+    const unmatchedToPickUp = unmatchedRows.filter((r) => !r.item.picked_up);
+    const pickedSorted = sortedRows.filter((r) => r.item.picked_up);
+    const pickedUnmatched = unmatchedRows.filter((r) => r.item.picked_up);
+    const pickedTotal = pickedSorted.length + pickedUnmatched.length;
+
     return (
       <>
         {toPickUp.length > 0 && (
@@ -277,10 +460,38 @@ export default function GroceryListPage() {
             <ul className="divide-y">{toPickUp.map((r) => renderRow(r, showAisleCode))}</ul>
           </div>
         )}
-        {pickedUp.length > 0 && (
+        {unmatchedToPickUp.length > 0 && (
           <div className="mt-4">
-            <h2 className="text-sm font-bold text-gray-500 mb-1">Picked Up</h2>
-            <ul className="divide-y">{pickedUp.map((r) => renderRow(r, showAisleCode))}</ul>
+            <h2 className="text-sm font-bold text-gray-500 mb-1">Unmatched</h2>
+            <ul className="divide-y">
+              {unmatchedToPickUp.map((r) => renderRow(r, showAisleCode, true))}
+            </ul>
+          </div>
+        )}
+        {pickedTotal > 0 && (
+          <div className="mt-6 pt-2 border-t-2 border-gray-100">
+            <h2 className="text-sm font-bold text-gray-400 mb-1">
+              Picked Up ({pickedTotal})
+            </h2>
+            <ul className="divide-y">
+              {pickedSorted.map((r) => renderRow(r, showAisleCode))}
+              {pickedUnmatched.map((r) => renderRow(r, showAisleCode, true))}
+            </ul>
+            {!selecting && !allPickedUp && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleFinishShopping}
+                  disabled={finishing || deleting}
+                  className="w-full mt-3 px-3 py-2 rounded border border-pink-600 text-pink-600 text-sm disabled:opacity-50"
+                >
+                  {finishing
+                    ? "Finishing..."
+                    : `Finish shopping — remove ${pluralItems(pickedTotal)} checked off`}
+                </button>
+                {renderDeleteCheckedButton(pickedTotal)}
+              </>
+            )}
           </div>
         )}
       </>
@@ -291,36 +502,73 @@ export default function GroceryListPage() {
     <main className="p-4 bg-white text-black min-h-screen">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold">Grocery List</h1>
-        <Link href="/aisle-order" className="text-xs text-pink-600 underline">
-          Edit aisle order
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/aisle-order" className="text-xs text-pink-600 underline">
+            Edit aisle order
+          </Link>
+          {!loading && items.length > 0 && !selecting && (
+            <button
+              type="button"
+              onClick={enterSelectMode}
+              className="text-xs px-2 py-1 rounded border border-pink-600 text-pink-600"
+            >
+              Select
+            </button>
+          )}
+        </div>
       </div>
-      <form onSubmit={addItem} className="flex gap-2 mb-4">
-        <input
-          className="flex-1 border rounded p-2"
-          placeholder="Add an item..."
-          value={itemName}
-          onChange={(e) => setItemName(e.target.value)}
-        />
-        <button type="submit" className="px-3 py-2 rounded bg-pink-600 text-white text-sm">
-          Add
-        </button>
-      </form>
 
-      {!loading && allPickedUp && (
+      {selecting ? (
+        <div className="sticky top-0 z-10 bg-white flex items-center gap-2 py-2 mb-2 border-b">
+          <button type="button" onClick={exitSelectMode} className="text-sm text-gray-600">
+            Cancel
+          </button>
+          <span className="flex-1 text-center text-sm font-bold">
+            {selectedIds.size} selected
+          </span>
+          <button type="button" onClick={toggleSelectAll} className="text-sm text-pink-600">
+            {allSelected ? "Deselect all" : "Select all"}
+          </button>
+          <button
+            type="button"
+            onClick={deleteSelected}
+            disabled={selectedIds.size === 0 || deleting}
+            aria-label={`Delete ${pluralItems(selectedIds.size)}`}
+            className="ml-1 px-2 py-1.5 rounded bg-red-500 text-white text-sm flex items-center gap-1 disabled:opacity-40"
+          >
+            <TrashIcon />
+            Delete
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={addItem} className="flex gap-2 mb-4">
+          <input
+            className="flex-1 border rounded p-2"
+            placeholder="Add an item..."
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+          />
+          <button type="submit" className="px-3 py-2 rounded bg-pink-600 text-white text-sm">
+            Add
+          </button>
+        </form>
+      )}
+
+      {!loading && !selecting && allPickedUp && (
         <div className="border border-pink-200 bg-pink-50 rounded-lg p-3 mb-4">
           <p className="text-sm text-pink-700 mb-2">Everything&rsquo;s picked up!</p>
           <button
-            onClick={handleCompleteList}
-            disabled={completing}
+            onClick={handleFinishShopping}
+            disabled={finishing || deleting}
             className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
           >
-            {completing ? "Completing..." : "Complete List"}
+            {finishing ? "Finishing..." : "Finish shopping"}
           </button>
+          {renderDeleteCheckedButton(pickedCount)}
         </div>
       )}
 
-      {!loading && items.length > 0 && !allPickedUp && (
+      {!loading && !selecting && items.length > 0 && !allPickedUp && (
         <button
           onClick={handleShop}
           disabled={sorting}
@@ -337,102 +585,7 @@ export default function GroceryListPage() {
         <p className="text-gray-500">Your list is empty. Add something above.</p>
       )}
 
-      {!loading &&
-        items.length > 0 &&
-        !grouped &&
-        renderSections(
-          items.map((item) => ({ item })),
-          false
-        )}
-
-      {grouped && (
-        <div>
-          {renderSections(
-            grouped.sorted.map(({ item, aisle }) => ({ item, aisleCode: aisle?.code })),
-            true
-          )}
-
-          {editingItemId &&
-            (() => {
-              const match = grouped.sorted.find((g) => g.item.id === editingItemId);
-              if (!match) return null;
-              return (
-                <div className="pl-8 pb-2">
-                  <select
-                    className="border rounded text-xs p-1 w-full"
-                    value={match.aisle?.id ?? ""}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handlePickAisle(match.item.item_name, e.target.value);
-                        setEditingItemId(null);
-                      }
-                    }}
-                  >
-                    {aisleOptions.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.code} — {a.categories}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              );
-            })()}
-
-          {grouped.unmatched.length > 0 && (
-            <div className="mt-4">
-              <h2 className="text-sm font-bold text-gray-500 mb-2">Unmatched</h2>
-              <ul className="divide-y">
-                {grouped.unmatched.map(({ item }) => (
-                  <li key={item.id} className="flex items-center gap-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={!!item.picked_up}
-                      onChange={(e) => togglePicked(item.id, e.target.checked)}
-                      aria-label={`Mark ${item.item_name} as picked up`}
-                      className="w-5 h-5 shrink-0 accent-pink-600"
-                    />
-                    <span className={`flex-1 ${item.picked_up ? "line-through text-gray-400" : ""}`}>
-                      {item.item_name}
-                    </span>
-                    <select
-                      className="border rounded text-xs p-1"
-                      defaultValue=""
-                      onChange={(e) => {
-                        if (e.target.value) handlePickAisle(item.item_name, e.target.value);
-                      }}
-                    >
-                      <option value="" disabled>
-                        Pick aisle...
-                      </option>
-                      {aisleOptions.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.code} — {a.categories}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => buyOnWalmart(item.item_name)}
-                      aria-label={`Buy ${item.item_name} on Walmart`}
-                      className="shrink-0 text-pink-600"
-                    >
-                      <CartIcon />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => confirmRemove(item)}
-                      aria-label={`Remove ${item.item_name}`}
-                      className="shrink-0 text-red-500 ml-2"
-                    >
-                      <TrashIcon />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
+      {!loading && items.length > 0 && renderList()}
     </main>
   );
 }
