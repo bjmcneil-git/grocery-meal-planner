@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NOTE_ADDED_EVENT } from "./NotesSection";
 
 function MessageIcon() {
   return (
@@ -52,14 +53,13 @@ export default function FeedbackButton() {
       setMessage("");
       setError(null);
       setSent(true);
+      window.dispatchEvent(new Event(NOTE_ADDED_EVENT));
     } catch {
       setError("Couldn't save your note. Please try again.");
     } finally {
       setSending(false);
     }
   }
-
-  if (pathname === "/feedback") return null;
 
   return (
     <>
@@ -138,7 +138,7 @@ export default function FeedbackButton() {
             )}
 
             <Link
-              href="/feedback"
+              href="/suggestions#notes"
               onClick={close}
               className="block text-center text-xs text-pink-600 underline mt-3"
             >

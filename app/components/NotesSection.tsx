@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import type { FeedbackNote } from "@/lib/types";
 
+// Fired by FeedbackButton after a note is saved, so an open list refreshes.
+export const NOTE_ADDED_EVENT = "feedback:note-added";
+
 const PAGE_NAMES: Record<string, string> = {
   "/": "Meal Planner",
   "/recipes": "Recipes",
@@ -31,46 +34,31 @@ function formatNoteDate(createdAt: string): string {
   });
 }
 
-export default function FeedbackPage() {
+export default function NotesSection() {
   const [notes, setNotes] = useState<FeedbackNote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/feedback")
+  function loadNotes() {
+    return fetch("/api/feedback")
       .then((r) => {
         if (!r.ok) throw new Error(`Failed to load notes with status ${r.status}`);
         return r.json();
       })
-      .then(setNotes)
+      .then((data: FeedbackNote[]) => {
+        setNotes(data);
+        setError(null);
+      })
       .catch(() => setError("Couldn't load notes. Please try again."))
       .finally(() => setLoading(false));
-  }, []);
-
-  async function addNote(e: React.FormEvent) {
-    e.preventDefault();
-    const text = message.trim();
-    if (!text) return;
-    setSending(true);
-    try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, page: null }),
-      });
-      if (!res.ok) throw new Error(`Failed to save note with status ${res.status}`);
-      const note: FeedbackNote = await res.json();
-      setNotes((prev) => [note, ...prev]);
-      setMessage("");
-      setError(null);
-    } catch {
-      setError("Couldn't save your note. Please try again.");
-    } finally {
-      setSending(false);
-    }
   }
+
+  useEffect(() => {
+    loadNotes();
+    const onAdded = () => loadNotes();
+    window.addEventListener(NOTE_ADDED_EVENT, onAdded);
+    return () => window.removeEventListener(NOTE_ADDED_EVENT, onAdded);
+  }, []);
 
   async function removeNote(note: FeedbackNote) {
     if (!window.confirm("Mark this note as done and remove it?")) return;
@@ -79,34 +67,19 @@ export default function FeedbackPage() {
   }
 
   return (
-    <main className="p-4 bg-white text-black min-h-screen">
-      <h1 className="text-xl font-bold mb-1">Notes &amp; Requests</h1>
-      <p className="text-sm text-gray-500 mb-4">
-        Ideas for things to add, change, or remove in the app.
+    <section id="notes" className="scroll-mt-4">
+      <h2 className="text-lg font-bold mb-1">
+        Notes{!loading && notes.length > 0 ? ` (${notes.length})` : ""}
+      </h2>
+      <p className="text-sm text-gray-500 mb-3">
+        Requests left with the pink message button for things to add, change, or remove in the
+        app.
       </p>
 
-      <form onSubmit={addNote} className="mb-4">
-        <textarea
-          className="w-full border rounded p-2 text-sm"
-          rows={3}
-          maxLength={2000}
-          placeholder="Add a note..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-        <button
-          type="submit"
-          disabled={sending || !message.trim()}
-          className="w-full mt-1 px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
-        >
-          {sending ? "Saving..." : "Add note"}
-        </button>
-      </form>
-
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-      {loading && <p className="text-gray-500">Loading...</p>}
+      {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+      {loading && <p className="text-sm text-gray-500">Loading...</p>}
       {!loading && notes.length === 0 && !error && (
-        <p className="text-gray-500">No notes yet.</p>
+        <p className="text-sm text-gray-500">No notes yet.</p>
       )}
 
       <ul className="space-y-2">
@@ -132,6 +105,6 @@ export default function FeedbackPage() {
           );
         })}
       </ul>
-    </main>
+    </section>
   );
 }

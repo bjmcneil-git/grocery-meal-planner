@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatCookTime } from "@/lib/formatCookTime";
 import type { RecipeSuggestion } from "@/lib/suggestions";
+import NotesSection from "@/app/components/NotesSection";
 
 export default function SuggestionsPage() {
   const [query, setQuery] = useState("");
@@ -147,6 +148,10 @@ export default function SuggestionsPage() {
           </li>
         ))}
       </ul>
+
+      <div className="mt-8 pt-4 border-t-2 border-gray-100">
+        <NotesSection />
+      </div>
     </main>
   );
 }
