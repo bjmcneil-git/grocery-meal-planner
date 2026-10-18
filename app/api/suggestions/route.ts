@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
-import { fetchRecipeSuggestions } from "@/lib/suggestions";
+import { fetchRecipeSuggestions, parseDietGoals } from "@/lib/suggestions";
 import type { Recipe, WeeklyPlanEntry } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const { query } = await req.json();
+  const { query, diet } = await req.json();
 
   const recipes = await d1Query<Recipe>("SELECT * FROM recipes ORDER BY created_at DESC LIMIT 30");
   const recentPlan = await d1Query<WeeklyPlanEntry>(
@@ -37,11 +37,15 @@ export async function POST(req: NextRequest) {
     )
   );
 
-  const suggestions = await fetchRecipeSuggestions(typeof query === "string" ? query : "", {
-    savedRecipes: recipes.map((r) => r.name),
-    recentMeals,
-    recentPurchases,
-  });
+  const suggestions = await fetchRecipeSuggestions(
+    typeof query === "string" ? query : "",
+    {
+      savedRecipes: recipes.map((r) => r.name),
+      recentMeals,
+      recentPurchases,
+    },
+    parseDietGoals(diet)
+  );
 
   if (suggestions.length === 0) {
     return NextResponse.json(

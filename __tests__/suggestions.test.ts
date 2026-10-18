@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { buildSuggestionPrompt, parseSuggestionsResponse } from "@/lib/suggestions";
+import {
+  buildSuggestionPrompt,
+  parseSuggestionsResponse,
+  parseDietGoals,
+  DEFAULT_DIET_GOALS,
+} from "@/lib/suggestions";
 
 describe("buildSuggestionPrompt", () => {
   const context = {
@@ -47,6 +52,9 @@ describe("parseSuggestionsResponse", () => {
         instructions: "Season and roast.",
         source_url: "https://example.com/lemon-chicken",
         ingredients: [{ ingredient_name: "chicken", quantity: 2, unit: "lb" }],
+        servings: null,
+        calories_per_serving: null,
+        protein_grams_per_serving: null,
       },
     ]);
   });
@@ -77,5 +85,63 @@ describe("parseSuggestionsResponse", () => {
 
   it("returns an empty array for unparseable text", () => {
     expect(parseSuggestionsResponse("not json at all")).toEqual([]);
+  });
+});
+
+describe("diet suggestions", () => {
+  const context = { savedRecipes: [], recentMeals: [], recentPurchases: [] };
+
+  it("adds the calorie and protein limits to the prompt when a diet is given", () => {
+    const prompt = buildSuggestionPrompt("chicken", context, {
+      maxCaloriesPerServing: 450,
+      minProteinGramsPerServing: 40,
+    });
+    expect(prompt).toContain("high-protein, low-calorie");
+    expect(prompt).toContain("at most 450 calories");
+    expect(prompt).toContain("at least 40 g of protein");
+    expect(prompt).toContain("dinner ideas");
+  });
+
+  it("leaves the diet rule out when no diet is given", () => {
+    expect(buildSuggestionPrompt("chicken", context)).not.toContain("low-calorie diet");
+  });
+
+  it("parses per-serving nutrition and nulls out bad values", () => {
+    const raw = JSON.stringify([
+      {
+        name: "Turkey Taco Bowl",
+        cuisine: null,
+        cook_time_minutes: 25,
+        instructions: "Brown turkey, build bowls.",
+        source_url: null,
+        ingredients: [{ ingredient_name: "ground turkey", quantity: 1, unit: "lb" }],
+        servings: 4,
+        calories_per_serving: 432.6,
+        protein_grams_per_serving: "lots",
+      },
+    ]);
+    const [s] = parseSuggestionsResponse(raw);
+    expect(s.servings).toBe(4);
+    expect(s.calories_per_serving).toBe(433);
+    expect(s.protein_grams_per_serving).toBeNull();
+  });
+});
+
+describe("parseDietGoals", () => {
+  it("returns null when no diet was requested", () => {
+    expect(parseDietGoals(undefined)).toBeNull();
+  });
+
+  it("keeps sane values and rounds them", () => {
+    expect(parseDietGoals({ maxCaloriesPerServing: "450.4", minProteinGramsPerServing: 40 })).toEqual({
+      maxCaloriesPerServing: 450,
+      minProteinGramsPerServing: 40,
+    });
+  });
+
+  it("falls back to defaults for out-of-range or junk values", () => {
+    expect(parseDietGoals({ maxCaloriesPerServing: 5, minProteinGramsPerServing: "abc" })).toEqual(
+      DEFAULT_DIET_GOALS
+    );
   });
 });

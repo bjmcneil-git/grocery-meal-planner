@@ -1,26 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { formatCookTime } from "@/lib/formatCookTime";
 import type { RecipeSuggestion } from "@/lib/suggestions";
+import DietDinners from "@/app/components/DietDinners";
 import NotesSection from "@/app/components/NotesSection";
+import SuggestionCards from "@/app/components/SuggestionCards";
 
 export default function SuggestionsPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<RecipeSuggestion[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [savedIds, setSavedIds] = useState<Record<number, string>>({});
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [requestId, setRequestId] = useState(0);
 
   async function handleAsk(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuggestions([]);
-    setSavedIds({});
-    setExpandedIndex(null);
     try {
       const res = await fetch("/api/suggestions", {
         method: "POST",
@@ -30,6 +27,7 @@ export default function SuggestionsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to get suggestions");
       setSuggestions(data.suggestions);
+      setRequestId((n) => n + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to get suggestions");
     } finally {
@@ -37,31 +35,13 @@ export default function SuggestionsPage() {
     }
   }
 
-  async function handleSave(index: number) {
-    const s = suggestions[index];
-    const res = await fetch("/api/recipes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: s.name,
-        instructions: s.instructions,
-        source: s.source_url ? "url" : "manual",
-        source_url: s.source_url,
-        cuisine: s.cuisine,
-        image_url: null,
-        cook_time_minutes: s.cook_time_minutes,
-        ingredients: s.ingredients,
-      }),
-    });
-    if (!res.ok) return;
-    const recipe = await res.json();
-    setSavedIds((prev) => ({ ...prev, [index]: recipe.id }));
-  }
-
   return (
     <main className="p-4">
       <h1 className="text-xl font-bold mb-4">Suggest</h1>
 
+      <DietDinners />
+
+      <h2 className="font-bold mb-2">Any Recipe Ideas</h2>
       <form onSubmit={handleAsk} className="flex gap-2 mb-4">
         <input
           className="flex-1 border rounded p-2"
@@ -87,67 +67,7 @@ export default function SuggestionsPage() {
         </p>
       )}
 
-      <ul className="space-y-3">
-        {suggestions.map((s, i) => (
-          <li key={i} className="border rounded-lg p-3">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-medium">{s.name}</p>
-                <p className="text-xs text-gray-500">
-                  {[s.cuisine, s.cook_time_minutes != null ? formatCookTime(s.cook_time_minutes) : null]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
-              {savedIds[i] ? (
-                <Link href={`/recipes/${savedIds[i]}`} className="text-xs text-green-600 shrink-0">
-                  Saved &#10003;
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleSave(i)}
-                  className="text-xs px-2 py-1 rounded bg-pink-600 text-white shrink-0"
-                >
-                  Save Recipe
-                </button>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setExpandedIndex((cur) => (cur === i ? null : i))}
-              className="text-xs text-pink-600 underline mt-2"
-            >
-              {expandedIndex === i ? "Hide details" : "View ingredients & steps"}
-            </button>
-            {expandedIndex === i && (
-              <div className="mt-2 text-sm">
-                <p className="font-medium text-xs text-gray-500 mb-1">Ingredients</p>
-                <ul className="list-disc list-inside mb-2">
-                  {s.ingredients.map((ing, j) => (
-                    <li key={j}>
-                      {ing.ingredient_name}
-                      {ing.quantity != null ? ` — ${ing.quantity}${ing.unit ? ` ${ing.unit}` : ""}` : ""}
-                    </li>
-                  ))}
-                </ul>
-                <p className="font-medium text-xs text-gray-500 mb-1">Instructions</p>
-                <p className="whitespace-pre-wrap text-gray-700">{s.instructions}</p>
-                {s.source_url && (
-                  <a
-                    href={s.source_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-pink-600 underline mt-2 inline-block"
-                  >
-                    Source
-                  </a>
-                )}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+      <SuggestionCards key={requestId} suggestions={suggestions} />
 
       <div className="mt-8 pt-4 border-t-2 border-gray-100">
         <NotesSection />
