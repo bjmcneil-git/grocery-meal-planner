@@ -4,6 +4,7 @@ import {
   parseSuggestionsResponse,
   parseDietGoals,
   DEFAULT_DIET_GOALS,
+  parseExcludedNames,
 } from "@/lib/suggestions";
 
 describe("buildSuggestionPrompt", () => {
@@ -143,5 +144,47 @@ describe("parseDietGoals", () => {
     expect(parseDietGoals({ maxCaloriesPerServing: 5, minProteinGramsPerServing: "abc" })).toEqual(
       DEFAULT_DIET_GOALS
     );
+  });
+});
+
+describe("refreshing diet suggestions", () => {
+  const context = { savedRecipes: [], recentMeals: [], recentPurchases: [] };
+  const diet = { maxCaloriesPerServing: 500, minProteinGramsPerServing: 35 };
+
+  it("asks for exactly 10 dinners in diet mode", () => {
+    const prompt = buildSuggestionPrompt("", context, diet);
+    expect(prompt).toContain("Suggest 10 varied dinner ideas");
+    expect(prompt).toContain("of exactly 10 objects");
+  });
+
+  it("keeps the 1-3 count for regular suggestions", () => {
+    expect(buildSuggestionPrompt("", context)).toContain("of 1-3 objects");
+  });
+
+  it("tells the model which dishes were already shown", () => {
+    const prompt = buildSuggestionPrompt("", context, diet, ["Turkey Taco Bowls", "Shrimp Stir Fry"]);
+    expect(prompt).toContain("don't suggest any of them");
+    expect(prompt).toContain("Turkey Taco Bowls, Shrimp Stir Fry");
+  });
+
+  it("omits the exclusion line when nothing was shown yet", () => {
+    expect(buildSuggestionPrompt("", context, diet)).not.toContain("already saw these");
+  });
+});
+
+describe("parseExcludedNames", () => {
+  it("keeps trimmed non-empty strings and drops junk", () => {
+    expect(parseExcludedNames(["  Tacos ", "", 5, null, "Chili"])).toEqual(["Tacos", "Chili"]);
+  });
+
+  it("caps the list length and name length", () => {
+    const names = Array.from({ length: 80 }, (_, i) => `Dish ${i} ${"x".repeat(200)}`);
+    const result = parseExcludedNames(names);
+    expect(result).toHaveLength(60);
+    expect(result[0].length).toBe(120);
+  });
+
+  it("returns an empty list for a non-array", () => {
+    expect(parseExcludedNames("Tacos")).toEqual([]);
   });
 });

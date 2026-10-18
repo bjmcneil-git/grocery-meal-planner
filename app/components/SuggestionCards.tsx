@@ -14,6 +14,14 @@ export function formatNutrition(s: RecipeSuggestion): string | null {
   return `${parts.join(" · ")} per serving`;
 }
 
+function sourceHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "the web";
+  }
+}
+
 // Saved recipes have no nutrition columns, so the estimate rides along at the
 // top of the instructions where it shows on the recipe page.
 function instructionsWithNutrition(s: RecipeSuggestion): string {
@@ -65,6 +73,15 @@ export default function SuggestionCards({ suggestions }: { suggestions: RecipeSu
                 {nutrition && (
                   <p className="text-xs font-medium text-pink-700 mt-0.5">{nutrition}</p>
                 )}
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  {s.source_url ? (
+                    <a href={s.source_url} target="_blank" rel="noreferrer" className="underline">
+                      Recipe from {sourceHost(s.source_url)}
+                    </a>
+                  ) : (
+                    "Recipe written by Claude"
+                  )}
+                </p>
               </div>
               {savedIds[i] ? (
                 <Link href={`/recipes/${savedIds[i]}`} className="text-xs text-green-600 shrink-0">

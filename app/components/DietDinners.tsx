@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import SuggestionCards from "./SuggestionCards";
-import { DEFAULT_DIET_GOALS, type DietGoals, type RecipeSuggestion } from "@/lib/suggestions";
+import {
+  DEFAULT_DIET_GOALS,
+  DIET_SUGGESTION_COUNT,
+  type DietGoals,
+  type RecipeSuggestion,
+} from "@/lib/suggestions";
 
 const GOALS_KEY = "diet-dinner-goals";
 
@@ -16,6 +21,20 @@ function loadSavedGoals(): DietGoals {
   return DEFAULT_DIET_GOALS;
 }
 
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" aria-hidden="true">
+      <path
+        d="M16 10a6 6 0 1 1-1.76-4.24M16 3.5V6h-2.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function DietDinners() {
   const [goals, setGoals] = useState<DietGoals>(DEFAULT_DIET_GOALS);
   const [query, setQuery] = useState("");
@@ -23,6 +42,8 @@ export default function DietDinners() {
   const [suggestions, setSuggestions] = useState<RecipeSuggestion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [requestId, setRequestId] = useState(0);
+  // Every dish shown since the last new search, so a refresh brings new ones.
+  const [shownNames, setShownNames] = useState<string[]>([]);
 
   useEffect(() => {
     setGoals(loadSavedGoals());
@@ -38,20 +59,20 @@ export default function DietDinners() {
     }
   }
 
-  async function handleAsk(e: React.FormEvent) {
-    e.preventDefault();
+  async function fetchDinners(exclude: string[]) {
     setLoading(true);
     setError(null);
-    setSuggestions([]);
     try {
       const res = await fetch("/api/suggestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, diet: goals }),
+        body: JSON.stringify({ query, diet: goals, exclude }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to get dinner ideas");
-      setSuggestions(data.suggestions);
+      const next: RecipeSuggestion[] = data.suggestions;
+      setSuggestions(next);
+      setShownNames([...exclude, ...next.map((s) => s.name)]);
       setRequestId((n) => n + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to get dinner ideas");
@@ -60,11 +81,22 @@ export default function DietDinners() {
     }
   }
 
+  function handleAsk(e: React.FormEvent) {
+    e.preventDefault();
+    setSuggestions([]);
+    fetchDinners([]);
+  }
+
+  function handleRefresh() {
+    fetchDinners(shownNames);
+  }
+
   return (
     <section className="border border-pink-200 bg-pink-50 rounded-lg p-3 mb-6">
       <h2 className="font-bold">High-Protein, Low-Calorie Dinners</h2>
       <p className="text-xs text-gray-600 mb-3">
-        Dinner ideas that fit your diet. Calories and protein are estimates.
+        {DIET_SUGGESTION_COUNT} dinner ideas that fit your diet. Calories and protein are
+        estimates.
       </p>
 
       <form onSubmit={handleAsk}>
@@ -107,7 +139,9 @@ export default function DietDinners() {
           disabled={loading}
           className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
         >
-          {loading ? "Finding dinners..." : "Get dinner ideas"}
+          {loading && suggestions.length === 0
+            ? `Finding ${DIET_SUGGESTION_COUNT} dinners... (can take a minute)`
+            : `Get ${DIET_SUGGESTION_COUNT} dinner ideas`}
         </button>
       </form>
 
@@ -116,6 +150,17 @@ export default function DietDinners() {
       {suggestions.length > 0 && (
         <div className="mt-3">
           <SuggestionCards key={requestId} suggestions={suggestions} />
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="w-full mt-3 px-3 py-2 rounded border border-pink-600 text-pink-600 bg-white text-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            <RefreshIcon />
+            {loading
+              ? `Finding ${DIET_SUGGESTION_COUNT} new dinners...`
+              : `Show me ${DIET_SUGGESTION_COUNT} different dinners`}
+          </button>
         </div>
       )}
     </section>
