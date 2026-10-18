@@ -151,10 +151,10 @@ describe("refreshing diet suggestions", () => {
   const context = { savedRecipes: [], recentMeals: [], recentPurchases: [] };
   const diet = { maxCaloriesPerServing: 500, minProteinGramsPerServing: 35 };
 
-  it("asks for exactly 10 dinners in diet mode", () => {
+  it("asks for exactly 5 dinners in diet mode", () => {
     const prompt = buildSuggestionPrompt("", context, diet);
-    expect(prompt).toContain("Suggest 10 varied dinner ideas");
-    expect(prompt).toContain("of exactly 10 objects");
+    expect(prompt).toContain("Suggest 5 varied dinner ideas");
+    expect(prompt).toContain("of exactly 5 objects");
   });
 
   it("keeps the 1-3 count for regular suggestions", () => {

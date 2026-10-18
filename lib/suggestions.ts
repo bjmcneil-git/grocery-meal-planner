@@ -22,7 +22,7 @@ export const DEFAULT_DIET_GOALS: DietGoals = {
   minProteinGramsPerServing: 35,
 };
 
-export const DIET_SUGGESTION_COUNT = 10;
+export const DIET_SUGGESTION_COUNT = 5;
 const MAX_EXCLUDED = 60;
 
 // Accepts untrusted input and returns a bounded list of dish names to avoid.
