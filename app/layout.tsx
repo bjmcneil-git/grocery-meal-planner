@@ -1,7 +1,6 @@
 import "./globals.css";
 import { Nunito } from "next/font/google";
 import NavBar from "./components/NavBar";
-import FeedbackButton from "./components/FeedbackButton";
 import { PALETTE_BOOT_SCRIPT, PALETTES } from "@/lib/theme";
 
 const nunito = Nunito({
@@ -28,9 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: PALETTE_BOOT_SCRIPT }} />
       </head>
-      <body className="font-sans pb-36 max-w-md mx-auto bg-app text-ink antialiased">
+      <body className="font-sans pb-28 max-w-md mx-auto bg-app text-ink antialiased">
         {children}
-        <FeedbackButton />
         <NavBar />
       </body>
     </html>
