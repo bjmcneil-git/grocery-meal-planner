@@ -11,6 +11,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: "2026-10-24",
+    title: "Swipe between tabs",
+    changes: [
+      "Swipe left or right on any main page to move to the next or previous tab.",
+      "The page follows your finger; a short or mostly up-and-down swipe just scrolls.",
+    ],
+  },
+  {
+    date: "2026-10-24",
     title: "A fresh new look",
     changes: [
       "Rounded cards, a friendlier font, and a colorful card for each page's main job.",
@@ -79,7 +87,12 @@ export const PATCH_NOTES: PatchNote[] = [
   },
 ];
 
-export const LATEST_UPDATE = PATCH_NOTES[0].date;
+// Date plus title, so two updates on the same day still count as new.
+export function updateId(note: PatchNote): string {
+  return `${note.date} ${note.title}`;
+}
+
+export const LATEST_UPDATE = updateId(PATCH_NOTES[0]);
 export const UPDATES_SEEN_KEY = "updates-seen";
 
 export function formatUpdateDate(date: string): string {

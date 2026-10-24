@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Nunito } from "next/font/google";
 import NavBar from "./components/NavBar";
+import SwipeTabs from "./components/SwipeTabs";
 import { PALETTE_BOOT_SCRIPT } from "@/lib/theme";
 
 const nunito = Nunito({
@@ -28,8 +29,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: PALETTE_BOOT_SCRIPT }} />
       </head>
-      <body className="font-sans pb-28 max-w-md mx-auto bg-app text-ink antialiased">
-        {children}
+      <body className="font-sans pb-28 max-w-md mx-auto bg-app text-ink antialiased overflow-x-clip">
+        <SwipeTabs>{children}</SwipeTabs>
         <NavBar />
       </body>
     </html>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PALETTES, getSavedPalette, savePalette } from "@/lib/theme";
-import { PATCH_NOTES, LATEST_UPDATE, UPDATES_SEEN_KEY, formatUpdateDate } from "@/lib/patchNotes";
+import { PATCH_NOTES, LATEST_UPDATE, UPDATES_SEEN_KEY, formatUpdateDate, updateId } from "@/lib/patchNotes";
 
 const UPDATES_SHOWN_AT_FIRST = 2;
 
@@ -156,7 +156,7 @@ export default function SettingsButton() {
               </h3>
               <ol className="flex flex-col gap-2">
                 {updates.map((u, i) => (
-                  <li key={u.date} className="card p-4">
+                  <li key={updateId(u)} className="card p-4">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-[15px] font-black leading-snug">{u.title}</p>
                       {i === 0 ? (
