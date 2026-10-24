@@ -1,7 +1,7 @@
 import "./globals.css";
 import { Nunito } from "next/font/google";
 import NavBar from "./components/NavBar";
-import { PALETTE_BOOT_SCRIPT, PALETTES } from "@/lib/theme";
+import { PALETTE_BOOT_SCRIPT } from "@/lib/theme";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -15,9 +15,10 @@ export const metadata = {
   manifest: "/manifest.json",
 };
 
-export const viewport = {
-  themeColor: PALETTES[0].swatch.grad1,
-};
+// No themeColor here on purpose, and no <meta name="theme-color"> in the JSX:
+// a React- or Next-rendered tag gets re-added with its fixed color next to
+// ours, and phones keep using that one. PALETTE_BOOT_SCRIPT creates the only
+// tag and lib/theme.ts recolors it to the chosen palette.
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

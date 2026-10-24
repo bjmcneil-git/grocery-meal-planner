@@ -73,8 +73,8 @@ const LINKS = [
 export default function NavBar() {
   const pathname = usePathname();
 
-  // The boot script in <head> can run before Next adds the theme-color meta;
-  // re-apply once mounted so the status bar matches the saved colors.
+  // Re-apply once mounted in case anything reset the theme-color tag during
+  // hydration, so the phone's bars match the saved colors.
   useEffect(() => {
     applyPalette(getSavedPalette());
   }, []);
