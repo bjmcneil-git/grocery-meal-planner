@@ -7,14 +7,14 @@ import { NOTE_ADDED_EVENT } from "./NotesSection";
 
 function MessageIcon() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" className="w-6 h-6" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" aria-hidden="true">
       <path
         d="M4.5 3.5h11A1.5 1.5 0 0 1 17 5v7.5a1.5 1.5 0 0 1-1.5 1.5H9l-3.5 3v-3h-1A1.5 1.5 0 0 1 3 12.5V5a1.5 1.5 0 0 1 1.5-1.5Z"
         stroke="currentColor"
-        strokeWidth="1.4"
+        strokeWidth="1.6"
         strokeLinejoin="round"
       />
-      <path d="M6.5 7.5h7M6.5 10.5h4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M6.5 7.5h7M6.5 10.5h4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -63,16 +63,14 @@ export default function FeedbackButton() {
 
   return (
     <>
-      <div className="fixed bottom-24 left-0 right-0 max-w-md mx-auto px-4 flex justify-end pointer-events-none z-30">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Leave a note about the app"
-          className="pointer-events-auto w-12 h-12 rounded-full bg-accent text-accent-ink shadow-lift flex items-center justify-center"
-        >
-          <MessageIcon />
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Leave a note about the app"
+        className="w-9 h-9 shrink-0 rounded-full bg-accent-soft text-accent-soft-ink flex items-center justify-center"
+      >
+        <MessageIcon />
+      </button>
 
       {open && (
         <div

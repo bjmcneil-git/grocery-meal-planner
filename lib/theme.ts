@@ -52,10 +52,24 @@ export function getSavedPalette(): string {
   }
 }
 
+// Colors the phone's status and navigation bars. Every theme-color tag gets
+// the color so a stray copy can never override the choice.
+function setThemeColor(color: string) {
+  const tags = document.querySelectorAll('meta[name="theme-color"]');
+  if (tags.length === 0) {
+    const tag = document.createElement("meta");
+    tag.name = "theme-color";
+    tag.content = color;
+    document.head.appendChild(tag);
+    return;
+  }
+  tags.forEach((tag) => tag.setAttribute("content", color));
+}
+
 export function applyPalette(key: string) {
   const palette = findPalette(key);
   document.documentElement.dataset.palette = palette.key;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", palette.swatch.grad1);
+  setThemeColor(palette.swatch.grad1);
 }
 
 export function savePalette(key: string) {
@@ -73,4 +87,4 @@ export const PALETTE_BOOT_SCRIPT = `(function(){var keys=${JSON.stringify(
   PALETTES.map((p) => p.key)
 )};var colors=${JSON.stringify(
   Object.fromEntries(PALETTES.map((p) => [p.key, p.swatch.grad1]))
-)};var k="${DEFAULT_PALETTE}";try{var s=localStorage.getItem("${PALETTE_STORAGE_KEY}");if(keys.indexOf(s)>=0)k=s}catch(e){}document.documentElement.dataset.palette=k;var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",colors[k]);})();`;
+)};var k="${DEFAULT_PALETTE}";try{var s=localStorage.getItem("${PALETTE_STORAGE_KEY}");if(keys.indexOf(s)>=0)k=s}catch(e){}document.documentElement.dataset.palette=k;var ms=document.querySelectorAll('meta[name="theme-color"]');if(!ms.length){var m=document.createElement("meta");m.name="theme-color";document.head.appendChild(m);ms=[m]}for(var i=0;i<ms.length;i++)ms[i].setAttribute("content",colors[k]);})();`;

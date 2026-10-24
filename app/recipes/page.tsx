@@ -108,7 +108,7 @@ function RecipesPageInner() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Search Google for recipes"
-          className="w-10 h-10 rounded-full bg-card shadow-soft flex items-center justify-center"
+          className="w-9 h-9 rounded-full bg-card shadow-soft flex items-center justify-center"
         >
           <GoogleIcon />
         </a>
@@ -117,14 +117,14 @@ function RecipesPageInner() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Search Pinterest for recipes"
-          className="w-10 h-10 rounded-full bg-card shadow-soft flex items-center justify-center text-[#E60023]"
+          className="w-9 h-9 rounded-full bg-card shadow-soft flex items-center justify-center text-[#E60023]"
         >
           <PinterestIcon />
         </a>
         <Link
           href="/recipes/new"
           aria-label="Add a recipe"
-          className="w-10 h-10 rounded-full bg-accent text-accent-ink shadow-lift flex items-center justify-center text-2xl font-bold leading-none"
+          className="w-9 h-9 rounded-full bg-accent text-accent-ink shadow-lift flex items-center justify-center text-2xl font-bold leading-none"
         >
           +
         </Link>

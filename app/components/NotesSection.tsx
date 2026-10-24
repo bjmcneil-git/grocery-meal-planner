@@ -72,8 +72,8 @@ export default function NotesSection() {
         Notes{!loading && notes.length > 0 ? ` (${notes.length})` : ""}
       </h2>
       <p className="text-sm font-semibold text-dim mb-3 px-1">
-        Requests left with the round message button for things to add, change, or remove in the
-        app.
+        Requests left with the message button at the top of each page for things to add, change,
+        or remove in the app.
       </p>
 
       {error && <p className="text-sm font-bold text-danger mb-2">{error}</p>}

@@ -44,7 +44,8 @@ const config: Config = {
         hero: "0 10px 22px rgba(20, 30, 40, 0.18)",
       },
       fontFamily: {
-        sans: ["var(--font-nunito)", "ui-rounded", "system-ui", "sans-serif"],
+        // The var() fallback keeps the stack valid if the web font ever fails to load.
+        sans: ["var(--font-nunito, ui-rounded)", "ui-rounded", "system-ui", "sans-serif"],
       },
     },
   },
