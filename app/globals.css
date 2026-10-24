@@ -2,24 +2,140 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #000000;
+/* Color sets ("palettes"). Each value is an RGB triplet so Tailwind's opacity
+   modifiers (bg-accent/10) work. The palette is chosen per device in the
+   App colors sheet; lib/theme.ts sets data-palette on <html>. Ocean is the
+   default. Keep the list in sync with PALETTES in lib/theme.ts. */
+:root,
+:root[data-palette="ocean"] {
+  --bg: 238 244 247;
+  --card: 255 255 255;
+  --ink: 16 37 58;
+  --dim: 95 115 134;
+  --line: 227 234 240;
+  --accent: 18 58 99;
+  --accent-ink: 255 255 255;
+  --accent-soft: 219 231 243;
+  --accent-soft-ink: 18 58 99;
+  --second: 25 179 177;
+  --second-soft: 214 243 242;
+  --second-soft-ink: 11 110 108;
+  --third-soft: 255 240 217;
+  --third-ink: 154 91 0;
+  --grad1: 18 58 99;
+  --grad2: 31 122 160;
+  --danger: 194 65 59;
+}
+
+:root[data-palette="forest"] {
+  --bg: 241 244 239;
+  --ink: 28 42 34;
+  --dim: 102 116 107;
+  --line: 228 233 226;
+  --accent: 46 107 79;
+  --accent-soft: 220 235 226;
+  --accent-soft-ink: 35 85 62;
+  --second: 217 150 44;
+  --second-soft: 251 239 214;
+  --second-soft-ink: 131 85 10;
+  --third-soft: 227 236 246;
+  --third-ink: 53 89 127;
+  --grad1: 36 86 63;
+  --grad2: 77 146 105;
+  --danger: 184 67 47;
+}
+
+:root[data-palette="plum"] {
+  --bg: 246 243 247;
+  --ink: 42 29 44;
+  --dim: 122 107 125;
+  --line: 236 230 237;
+  --accent: 110 42 99;
+  --accent-soft: 240 224 236;
+  --accent-soft-ink: 94 32 84;
+  --second: 201 154 59;
+  --second-soft: 247 238 216;
+  --second-soft-ink: 122 90 18;
+  --third-soft: 226 238 243;
+  --third-ink: 47 97 120;
+  --grad1: 90 33 82;
+  --grad2: 162 70 127;
+  --danger: 184 54 74;
+}
+
+:root[data-palette="blush"] {
+  --bg: 251 242 244;
+  --ink: 45 26 34;
+  --dim: 132 105 122;
+  --line: 241 228 234;
+  --accent: 180 48 95;
+  --accent-soft: 248 221 232;
+  --accent-soft-ink: 142 36 83;
+  --second: 232 135 91;
+  --second-soft: 253 232 220;
+  --second-soft-ink: 147 68 28;
+  --third-soft: 228 238 248;
+  --third-ink: 52 93 134;
+  --grad1: 168 39 90;
+  --grad2: 224 112 155;
+  --danger: 180 43 58;
+}
+
+html {
+  background: rgb(var(--bg));
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--ink));
+  background: rgb(var(--bg));
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Form fields keep a light background regardless of page theme, so
-   their text must stay dark for contrast even on a dark page. */
-input,
-select,
-textarea {
-  color: #171717;
-  background-color: #ffffff;
+/* Form field defaults: white wells with an accent focus ring. Wrapped in
+   :where() so any utility class on a field (bg-white/15, text-white) wins. */
+@layer base {
+  :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
+    color: rgb(var(--ink));
+    background-color: rgb(var(--card));
+    border-color: rgb(var(--line));
+  }
+  :where(input, textarea)::placeholder {
+    color: rgb(var(--dim) / 0.8);
+  }
+  :where(input, select, textarea, button, a):focus-visible {
+    outline: 2px solid rgb(var(--accent) / 0.55);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-card rounded-3xl shadow-soft;
+  }
+  .field {
+    @apply w-full rounded-2xl border-2 border-line bg-card px-3 py-2.5 text-[15px] font-semibold;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-sm font-extrabold transition-colors disabled:opacity-50;
+  }
+  .btn-main {
+    @apply btn bg-accent text-accent-ink shadow-lift;
+  }
+  .btn-soft {
+    @apply btn bg-accent-soft text-accent-soft-ink;
+  }
+  .btn-outline {
+    @apply btn border-2 border-accent/30 text-accent bg-card;
+  }
+  .btn-danger {
+    @apply btn border-2 border-danger/35 text-danger bg-card;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-extrabold;
+  }
+  .link {
+    @apply font-bold text-accent underline decoration-accent/30 underline-offset-2;
+  }
 }
 
 @layer utilities {

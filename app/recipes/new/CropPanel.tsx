@@ -122,8 +122,8 @@ export default function CropPanel({ images, onCropped, onSkip }: CropPanelProps)
   }
 
   return (
-    <div className="mb-4 p-3 border rounded bg-gray-50">
-      <p className="font-medium mb-2">Crop the dish photo for the thumbnail</p>
+    <div className="card mb-4 p-4">
+      <p className="text-base font-black mb-2">Crop the dish photo for the thumbnail</p>
       {images.length > 1 && (
         <div className="flex gap-2 mb-2">
           {images.map((src, i) => (
@@ -131,9 +131,9 @@ export default function CropPanel({ images, onCropped, onSkip }: CropPanelProps)
               key={i}
               type="button"
               onClick={() => selectImage(i)}
-              className={`border-2 rounded ${i === selectedIndex ? "border-pink-600" : "border-transparent"}`}
+              className={`border-2 rounded-xl ${i === selectedIndex ? "border-accent" : "border-transparent"}`}
             >
-              <img src={src} alt="" className="w-12 h-12 object-cover rounded" />
+              <img src={src} alt="" className="w-12 h-12 object-cover rounded-lg" />
             </button>
           ))}
         </div>
@@ -147,17 +147,17 @@ export default function CropPanel({ images, onCropped, onSkip }: CropPanelProps)
           ref={imgRef}
           src={images[selectedIndex]}
           alt="Uploaded screenshot"
-          className="max-w-full max-h-96 block"
+          className="max-w-full max-h-96 block rounded-xl"
           onLoad={initBox}
         />
         {box && (
           <div
-            className="absolute border-2 border-pink-600 bg-pink-600/20 cursor-move"
+            className="absolute border-2 border-accent bg-accent/20 cursor-move"
             style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
             onPointerDown={(e) => handlePointerDown(e, "move")}
           >
             <div
-              className="absolute bg-pink-600 rounded-full cursor-nwse-resize"
+              className="absolute bg-accent rounded-full cursor-nwse-resize"
               style={{
                 right: -HANDLE_SIZE / 2,
                 bottom: -HANDLE_SIZE / 2,
@@ -170,10 +170,10 @@ export default function CropPanel({ images, onCropped, onSkip }: CropPanelProps)
         )}
       </div>
       <div className="flex gap-2 mt-2">
-        <button type="button" onClick={useThisCrop} className="bg-pink-600 text-white rounded px-3 py-1">
+        <button type="button" onClick={useThisCrop} className="btn-main">
           Use this crop
         </button>
-        <button type="button" onClick={onSkip} className="text-gray-600 rounded px-3 py-1">
+        <button type="button" onClick={onSkip} className="btn text-dim">
           Skip
         </button>
       </div>

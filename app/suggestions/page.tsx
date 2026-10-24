@@ -5,6 +5,7 @@ import type { RecipeSuggestion } from "@/lib/suggestions";
 import DietDinners from "@/app/components/DietDinners";
 import NotesSection from "@/app/components/NotesSection";
 import SuggestionCards from "@/app/components/SuggestionCards";
+import PageHeader from "@/app/components/PageHeader";
 
 export default function SuggestionsPage() {
   const [query, setQuery] = useState("");
@@ -36,15 +37,15 @@ export default function SuggestionsPage() {
   }
 
   return (
-    <main className="p-4">
-      <h1 className="text-xl font-bold mb-4">Suggest</h1>
+    <main className="px-4 pt-3">
+      <PageHeader eyebrow="Dinner ideas" title="Suggestions" />
 
       <DietDinners />
 
-      <h2 className="font-bold mb-2">Any Recipe Ideas</h2>
+      <h2 className="text-base font-black mb-2 px-1">Any recipe ideas</h2>
       <form onSubmit={handleAsk} className="flex gap-2 mb-4">
         <input
-          className="flex-1 border rounded p-2"
+          className="field flex-1 shadow-soft border-transparent"
           placeholder="What would you like?"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -52,16 +53,16 @@ export default function SuggestionsPage() {
         <button
           type="submit"
           disabled={loading}
-          className="px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
+          className="btn-main"
         >
           {loading ? "Thinking..." : "Ask"}
         </button>
       </form>
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && <p className="text-sm font-bold text-danger mb-4">{error}</p>}
 
       {!loading && suggestions.length === 0 && !error && (
-        <p className="text-gray-500 text-sm">
+        <p className="text-sm font-semibold text-dim px-1 mb-2">
           Type a few ingredients you have on hand, or leave it blank and ask for ideas based on
           what you&rsquo;ve cooked before.
         </p>
@@ -69,7 +70,7 @@ export default function SuggestionsPage() {
 
       <SuggestionCards key={requestId} suggestions={suggestions} />
 
-      <div className="mt-8 pt-4 border-t-2 border-gray-100">
+      <div className="mt-10">
         <NotesSection />
       </div>
     </main>

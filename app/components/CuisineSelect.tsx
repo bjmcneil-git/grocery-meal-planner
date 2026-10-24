@@ -13,7 +13,7 @@ interface CuisineSelectProps {
 export default function CuisineSelect({
   value,
   onChange,
-  className = "w-full border rounded p-2",
+  className = "field",
 }: CuisineSelectProps) {
   const [options, setOptions] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
@@ -70,14 +70,14 @@ export default function CuisineSelect({
             }
           }}
         />
-        <button type="button" onClick={confirmNewCuisine} className="bg-pink-600 text-white rounded px-3">
+        <button type="button" onClick={confirmNewCuisine} className="btn-main px-3">
           Add
         </button>
         <button
           type="button"
           onClick={() => setAdding(false)}
           aria-label="Cancel adding a cuisine"
-          className="text-gray-500 px-2"
+          className="text-sm font-bold text-dim px-2"
         >
           &times;
         </button>

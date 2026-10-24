@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { AisleDirectoryEntry, GroceryListItem } from "@/lib/types";
 import type { GroupedGroceryList } from "@/lib/groceryOrder";
 import { buildWalmartSearchUrl } from "@/lib/walmartCart";
+import PageHeader from "../components/PageHeader";
 
 interface Row {
   item: GroceryListItem;
@@ -21,6 +22,20 @@ function TrashIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+// Drawn over the custom round checkbox; shown only when it's checked.
+function CheckMark() {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      fill="none"
+      className="pointer-events-none absolute inset-0 m-auto w-3 h-3 text-white hidden peer-checked:block"
+      aria-hidden="true"
+    >
+      <path d="M2.5 6.2 5 8.5l4.5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -302,7 +317,7 @@ export default function GroceryListPage() {
         type="button"
         onClick={deleteChecked}
         disabled={finishing || deleting}
-        className="w-full mt-2 px-3 py-2 rounded border border-red-500 text-red-500 text-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+        className="w-full mt-2 btn-danger"
       >
         <TrashIcon />
         {deleting ? "Deleting..." : `Delete ${pluralItems(count)} checked off`}
@@ -317,21 +332,26 @@ export default function GroceryListPage() {
     return (
       <li key={item.id}>
         <label
-          className={`flex items-center gap-3 py-2 cursor-pointer ${selected ? "bg-pink-50" : ""}`}
+          className={`-mx-2 px-2 flex items-center gap-3 py-3 cursor-pointer rounded-2xl ${
+            selected ? "bg-danger/10" : ""
+          }`}
         >
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={() => toggleSelected(item.id)}
-            aria-label={`Select ${item.item_name}`}
-            className="w-5 h-5 shrink-0 accent-red-500"
-          />
-          <span className={`flex-1 ${picked ? "line-through text-gray-400" : ""}`}>
+          <span className="relative w-6 h-6 shrink-0">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={() => toggleSelected(item.id)}
+              aria-label={`Select ${item.item_name}`}
+              className="peer appearance-none w-6 h-6 rounded-lg border-2 border-line bg-card checked:bg-danger checked:border-danger cursor-pointer"
+            />
+            <CheckMark />
+          </span>
+          <span className={`flex-1 font-bold ${picked ? "line-through text-dim" : ""}`}>
             {item.item_name}
           </span>
           {item.quantity != null && (
-            <span className="text-sm text-gray-500 min-w-[2.5rem] text-right">
-              {item.quantity}
+            <span className="text-sm font-extrabold text-dim min-w-[2.5rem] text-right">
+              ×{item.quantity}
             </span>
           )}
         </label>
@@ -345,30 +365,34 @@ export default function GroceryListPage() {
     const picked = !!item.picked_up;
     const editingAisle = showAisleCode && !unmatched && editingItemId === item.id;
     return (
-      <li key={item.id} className={picked ? "opacity-50" : ""}>
-        <div className="flex items-center gap-3 py-2">
-          <input
-            type="checkbox"
-            checked={picked}
-            onChange={(e) => togglePicked(item.id, e.target.checked)}
-            aria-label={`Mark ${item.item_name} as picked up`}
-            className="w-5 h-5 shrink-0 accent-pink-600"
-          />
+      <li key={item.id} className={picked ? "opacity-60" : ""}>
+        <div className="flex items-center gap-2.5 py-3">
+          <span className="relative w-6 h-6 shrink-0">
+            <input
+              type="checkbox"
+              checked={picked}
+              onChange={(e) => togglePicked(item.id, e.target.checked)}
+              aria-label={`Mark ${item.item_name} as picked up`}
+              className="peer appearance-none w-6 h-6 rounded-full border-2 border-line bg-card checked:bg-second checked:border-second cursor-pointer"
+            />
+            <CheckMark />
+          </span>
+          <span className={`flex-1 min-w-0 font-bold leading-snug ${picked ? "line-through text-dim" : ""}`}>
+            {item.item_name}
+          </span>
           {showAisleCode && !unmatched && (
             <button
               type="button"
               onClick={() => setEditingItemId((cur) => (cur === item.id ? null : item.id))}
-              className="w-10 shrink-0 text-left text-xs font-mono text-gray-500"
+              aria-label={`Change aisle for ${item.item_name}`}
+              className="chip shrink-0 rounded-lg bg-accent-soft text-accent-soft-ink"
             >
               {aisleCode ?? "—"}
             </button>
           )}
-          <span className={`flex-1 ${picked ? "line-through text-gray-400" : ""}`}>
-            {item.item_name}
-          </span>
           {unmatched && (
             <select
-              className="border rounded text-xs p-1 max-w-[7rem]"
+              className="rounded-lg border-2 text-xs font-bold p-1 max-w-[6.5rem]"
               defaultValue=""
               onChange={(e) => {
                 if (e.target.value) handlePickAisle(item.item_name, e.target.value);
@@ -384,7 +408,7 @@ export default function GroceryListPage() {
             <input
               type="number"
               autoFocus
-              className="w-14 border rounded p-1 text-sm text-right"
+              className="w-14 rounded-lg border-2 p-1 text-sm font-bold text-right"
               value={quantityDraft}
               onChange={(e) => setQuantityDraft(e.target.value)}
               onBlur={() => saveQuantity(item.id)}
@@ -397,16 +421,16 @@ export default function GroceryListPage() {
             <button
               type="button"
               onClick={() => startEditQuantity(item.id, item.quantity)}
-              className="text-sm text-gray-500 min-w-[2.5rem] text-right"
+              className="text-sm font-extrabold text-dim min-w-[2.5rem] text-right"
             >
-              {item.quantity != null ? item.quantity : "+ qty"}
+              {item.quantity != null ? `×${item.quantity}` : "+ qty"}
             </button>
           )}
           <button
             type="button"
             onClick={() => buyOnWalmart(item.item_name)}
             aria-label={`Buy ${item.item_name} on Walmart`}
-            className="shrink-0 text-pink-600"
+            className="shrink-0 text-accent p-0.5"
           >
             <CartIcon />
           </button>
@@ -414,15 +438,15 @@ export default function GroceryListPage() {
             type="button"
             onClick={() => confirmRemove(item)}
             aria-label={`Remove ${item.item_name}`}
-            className="shrink-0 text-red-500 ml-2"
+            className="shrink-0 text-danger/80 p-0.5"
           >
             <TrashIcon />
           </button>
         </div>
         {editingAisle && grouped && (
-          <div className="pl-8 pb-2">
+          <div className="pl-9 pb-3">
             <select
-              className="border rounded text-xs p-1 w-full"
+              className="field text-xs py-1.5"
               value={grouped.sorted.find((g) => g.item.id === item.id)?.aisle?.id ?? ""}
               onChange={(e) => {
                 if (e.target.value) {
@@ -436,6 +460,15 @@ export default function GroceryListPage() {
           </div>
         )}
       </li>
+    );
+  }
+
+  function renderSectionTitle(title: string, count: number) {
+    return (
+      <div className="flex items-baseline justify-between mt-5 mb-2 px-1">
+        <h2 className="text-base font-black">{title}</h2>
+        <span className="text-xs font-extrabold text-dim">{count}</span>
+      </div>
     );
   }
 
@@ -455,78 +488,108 @@ export default function GroceryListPage() {
     return (
       <>
         {toPickUp.length > 0 && (
-          <div>
-            <h2 className="text-sm font-bold text-gray-500 mb-1">To Pick Up</h2>
-            <ul className="divide-y">{toPickUp.map((r) => renderRow(r, showAisleCode))}</ul>
-          </div>
+          <>
+            {renderSectionTitle("To pick up", toPickUp.length)}
+            <ul className="card px-4 py-0.5 divide-y-2 divide-line/70">
+              {toPickUp.map((r) => renderRow(r, showAisleCode))}
+            </ul>
+          </>
         )}
         {unmatchedToPickUp.length > 0 && (
-          <div className="mt-4">
-            <h2 className="text-sm font-bold text-gray-500 mb-1">Unmatched</h2>
-            <ul className="divide-y">
+          <>
+            {renderSectionTitle("No aisle yet", unmatchedToPickUp.length)}
+            <ul className="card px-4 py-0.5 divide-y-2 divide-line/70">
               {unmatchedToPickUp.map((r) => renderRow(r, showAisleCode, true))}
             </ul>
-          </div>
+          </>
         )}
         {pickedTotal > 0 && (
-          <div className="mt-6 pt-2 border-t-2 border-gray-100">
-            <h2 className="text-sm font-bold text-gray-400 mb-1">
-              Picked Up ({pickedTotal})
-            </h2>
-            <ul className="divide-y">
+          <>
+            {renderSectionTitle("Picked up", pickedTotal)}
+            <ul className="card px-4 py-0.5 divide-y-2 divide-line/70">
               {pickedSorted.map((r) => renderRow(r, showAisleCode))}
               {pickedUnmatched.map((r) => renderRow(r, showAisleCode, true))}
             </ul>
             {!selecting && !allPickedUp && (
-              <>
+              <div className="mt-3">
                 <button
                   type="button"
                   onClick={handleFinishShopping}
                   disabled={finishing || deleting}
-                  className="w-full mt-3 px-3 py-2 rounded border border-pink-600 text-pink-600 text-sm disabled:opacity-50"
+                  className="w-full btn-main"
                 >
-                  {finishing
-                    ? "Finishing..."
-                    : `Finish shopping — remove ${pluralItems(pickedTotal)} checked off`}
+                  {finishing ? "Finishing..." : `Finish shopping (${pluralItems(pickedTotal)})`}
                 </button>
                 {renderDeleteCheckedButton(pickedTotal)}
-              </>
+              </div>
             )}
-          </div>
+          </>
         )}
       </>
     );
   }
 
-  return (
-    <main className="p-4 bg-white text-black min-h-screen">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold">Grocery List</h1>
-        <div className="flex items-center gap-3">
-          <Link href="/aisle-order" className="text-xs text-pink-600 underline">
-            Edit aisle order
-          </Link>
-          {!loading && items.length > 0 && !selecting && (
-            <button
-              type="button"
-              onClick={enterSelectMode}
-              className="text-xs px-2 py-1 rounded border border-pink-600 text-pink-600"
-            >
-              Select
-            </button>
-          )}
+  function renderProgress() {
+    const total = items.length;
+    const pct = total === 0 ? 0 : Math.round((pickedCount / total) * 100);
+    return (
+      <div className="card p-4 flex items-center gap-4 mb-1">
+        <svg width="68" height="68" viewBox="0 0 100 100" className="shrink-0" aria-hidden="true">
+          <circle cx="50" cy="50" r="40" fill="none" strokeWidth="12" className="stroke-line" />
+          <circle
+            cx="50"
+            cy="50"
+            r="40"
+            fill="none"
+            strokeWidth="12"
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray={`${Math.max(pct, 0.1)} 100`}
+            transform="rotate(-90 50 50)"
+            className="stroke-second transition-[stroke-dasharray] duration-500"
+          />
+        </svg>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-extrabold tracking-wider text-dim">PICKED UP</p>
+          <p className="text-xl font-black leading-tight tabular-nums">
+            {pickedCount} of {total}
+          </p>
+          <button
+            onClick={handleShop}
+            disabled={sorting}
+            className="btn-main mt-2 py-2 px-3.5 text-[13px]"
+          >
+            {sorting ? "Sorting..." : grouped ? "Re-sort by aisle" : "Let's go shopping"}
+          </button>
         </div>
       </div>
+    );
+  }
+
+  const remaining = items.length - pickedCount;
+
+  return (
+    <main className="px-4 pt-3">
+      <PageHeader
+        eyebrow={
+          loading ? "\u00a0" : items.length === 0 ? "Nothing to get" : `${pluralItems(remaining)} to get`
+        }
+        title="Shopping List"
+      >
+        {!loading && items.length > 0 && !selecting && (
+          <button type="button" onClick={enterSelectMode} className="chip py-1.5 px-3 bg-card text-accent shadow-soft">
+            Select
+          </button>
+        )}
+      </PageHeader>
 
       {selecting ? (
-        <div className="sticky top-0 z-10 bg-white flex items-center gap-2 py-2 mb-2 border-b">
-          <button type="button" onClick={exitSelectMode} className="text-sm text-gray-600">
+        <div className="sticky top-2 z-10 card flex items-center gap-2 p-2 pl-4 mb-3">
+          <button type="button" onClick={exitSelectMode} className="text-sm font-bold text-dim">
             Cancel
           </button>
-          <span className="flex-1 text-center text-sm font-bold">
-            {selectedIds.size} selected
-          </span>
-          <button type="button" onClick={toggleSelectAll} className="text-sm text-pink-600">
+          <span className="flex-1 text-center text-sm font-black">{selectedIds.size} selected</span>
+          <button type="button" onClick={toggleSelectAll} className="text-sm font-bold text-accent">
             {allSelected ? "Deselect all" : "Select all"}
           </button>
           <button
@@ -534,7 +597,7 @@ export default function GroceryListPage() {
             onClick={deleteSelected}
             disabled={selectedIds.size === 0 || deleting}
             aria-label={`Delete ${pluralItems(selectedIds.size)}`}
-            className="ml-1 px-2 py-1.5 rounded bg-red-500 text-white text-sm flex items-center gap-1 disabled:opacity-40"
+            className="btn bg-danger text-white py-2 px-3 disabled:opacity-40"
           >
             <TrashIcon />
             Delete
@@ -543,49 +606,61 @@ export default function GroceryListPage() {
       ) : (
         <form onSubmit={addItem} className="flex gap-2 mb-4">
           <input
-            className="flex-1 border rounded p-2"
+            className="field flex-1 shadow-soft border-transparent"
             placeholder="Add an item..."
+            aria-label="Add an item"
             value={itemName}
             onChange={(e) => setItemName(e.target.value)}
           />
-          <button type="submit" className="px-3 py-2 rounded bg-pink-600 text-white text-sm">
-            Add
+          <button type="submit" aria-label="Add" className="btn-main w-12 px-0 text-2xl leading-none">
+            +
           </button>
         </form>
       )}
 
       {!loading && !selecting && allPickedUp && (
-        <div className="border border-pink-200 bg-pink-50 rounded-lg p-3 mb-4">
-          <p className="text-sm text-pink-700 mb-2">Everything&rsquo;s picked up!</p>
+        <div className="relative overflow-hidden rounded-3xl bg-hero text-white shadow-hero p-4 mb-1">
+          <div className="absolute -right-10 -top-10 w-36 h-36 rounded-full bg-white/10" aria-hidden="true" />
+          <p className="relative text-[11px] font-extrabold tracking-wider opacity-85">ALL DONE</p>
+          <p className="relative text-xl font-black">Everything&rsquo;s picked up!</p>
           <button
             onClick={handleFinishShopping}
             disabled={finishing || deleting}
-            className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
+            className="relative w-full mt-3 btn bg-card text-accent"
           >
             {finishing ? "Finishing..." : "Finish shopping"}
           </button>
-          {renderDeleteCheckedButton(pickedCount)}
+          <button
+            type="button"
+            onClick={deleteChecked}
+            disabled={finishing || deleting}
+            className="relative w-full mt-2 btn bg-white/15 text-white"
+          >
+            <TrashIcon />
+            {deleting ? "Deleting..." : `Delete ${pluralItems(pickedCount)} checked off`}
+          </button>
         </div>
       )}
 
-      {!loading && !selecting && items.length > 0 && !allPickedUp && (
-        <button
-          onClick={handleShop}
-          disabled={sorting}
-          className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm mb-2 disabled:opacity-50"
-        >
-          {sorting ? "Sorting..." : "Let's go shopping"}
-        </button>
-      )}
+      {!loading && !selecting && items.length > 0 && !allPickedUp && renderProgress()}
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && <p className="text-sm font-bold text-danger my-3">{error}</p>}
 
-      {loading && <p className="text-gray-500">Loading...</p>}
+      {loading && <p className="font-semibold text-dim">Loading...</p>}
       {!loading && items.length === 0 && (
-        <p className="text-gray-500">Your list is empty. Add something above.</p>
+        <div className="card p-6 text-center">
+          <p className="text-lg font-black">Your list is empty</p>
+          <p className="text-sm font-semibold text-dim mt-1">Add something above to get started.</p>
+        </div>
       )}
 
       {!loading && items.length > 0 && renderList()}
+
+      <p className="text-center mt-6">
+        <Link href="/aisle-order" className="text-xs link">
+          Edit aisle order
+        </Link>
+      </p>
     </main>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import PageHeader from "../../../components/PageHeader";
 import type { Recipe } from "@/lib/types";
 import CuisineSelect from "@/app/components/CuisineSelect";
 
@@ -40,24 +41,28 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
     router.push(`/recipes/${params.id}`);
   }
 
-  if (!loaded) return <main className="p-4">Loading...</main>;
+  if (!loaded) return <main className="px-4 pt-6 font-semibold text-dim">Loading...</main>;
 
   return (
-    <main className="p-4">
-      <Link href={`/recipes/${params.id}`} className="text-pink-600 text-sm mb-2 inline-block">
-        &larr; Back to Recipe
-      </Link>
-      <h1 className="text-xl font-bold mb-4">Edit Recipe</h1>
-      <form onSubmit={handleSubmit} className="space-y-3">
+    <main className="px-4 pt-3">
+      <PageHeader
+        eyebrow={
+          <Link href={`/recipes/${params.id}`} className="text-accent">
+            &larr; Back to Recipe
+          </Link>
+        }
+        title="Edit Recipe"
+      />
+      <form onSubmit={handleSubmit} className="card p-4 space-y-3">
         <input
-          className="w-full border rounded p-2"
+          className="field"
           placeholder="Recipe name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <CuisineSelect value={cuisine} onChange={setCuisine} />
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button type="submit" className="w-full bg-pink-600 text-white rounded p-2">
+        {error && <p className="text-danger font-bold text-sm">{error}</p>}
+        <button type="submit" className="w-full btn-main">
           Save Changes
         </button>
       </form>

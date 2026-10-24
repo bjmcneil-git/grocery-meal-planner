@@ -59,21 +59,16 @@ export default function SuggestionCards({ suggestions }: { suggestions: RecipeSu
   return (
     <ul className="space-y-3">
       {suggestions.map((s, i) => {
-        const nutrition = formatNutrition(s);
+        const meta = [s.cuisine, s.cook_time_minutes != null ? formatCookTime(s.cook_time_minutes) : null]
+          .filter(Boolean)
+          .join(" · ");
         return (
-          <li key={i} className="border rounded-lg p-3 bg-white">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-medium">{s.name}</p>
-                <p className="text-xs text-gray-500">
-                  {[s.cuisine, s.cook_time_minutes != null ? formatCookTime(s.cook_time_minutes) : null]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-                {nutrition && (
-                  <p className="text-xs font-medium text-pink-700 mt-0.5">{nutrition}</p>
-                )}
-                <p className="text-[11px] text-gray-400 mt-0.5">
+          <li key={i} className="card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[15px] font-black leading-snug">{s.name}</p>
+                <p className="text-xs font-bold text-dim mt-0.5">
+                  {meta && <>{meta} · </>}
                   {s.source_url ? (
                     <a href={s.source_url} target="_blank" rel="noreferrer" className="underline">
                       Recipe from {sourceHost(s.source_url)}
@@ -84,30 +79,43 @@ export default function SuggestionCards({ suggestions }: { suggestions: RecipeSu
                 </p>
               </div>
               {savedIds[i] ? (
-                <Link href={`/recipes/${savedIds[i]}`} className="text-xs text-green-600 shrink-0">
+                <Link href={`/recipes/${savedIds[i]}`} className="chip py-1 bg-second-soft text-second-soft-ink shrink-0">
                   Saved &#10003;
                 </Link>
               ) : (
                 <button
                   type="button"
                   onClick={() => handleSave(i)}
-                  className="text-xs px-2 py-1 rounded bg-pink-600 text-white shrink-0"
+                  className="chip py-1.5 px-3 bg-accent text-accent-ink shrink-0"
                 >
                   Save Recipe
                 </button>
               )}
             </div>
+            {(s.protein_grams_per_serving != null || s.calories_per_serving != null) && (
+              <div className="flex flex-wrap gap-1.5 mt-2 tabular-nums">
+                {s.protein_grams_per_serving != null && (
+                  <span className="chip bg-second-soft text-second-soft-ink">
+                    {s.protein_grams_per_serving} g protein
+                  </span>
+                )}
+                {s.calories_per_serving != null && (
+                  <span className="chip bg-third-soft text-third-ink">~{s.calories_per_serving} cal</span>
+                )}
+                <span className="chip bg-line text-dim">per serving</span>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setExpandedIndex((cur) => (cur === i ? null : i))}
-              className="text-xs text-pink-600 underline mt-2"
+              className="text-xs link mt-3"
             >
               {expandedIndex === i ? "Hide details" : "View ingredients & steps"}
             </button>
             {expandedIndex === i && (
-              <div className="mt-2 text-sm">
-                <p className="font-medium text-xs text-gray-500 mb-1">Ingredients</p>
-                <ul className="list-disc list-inside mb-2">
+              <div className="mt-3 text-sm">
+                <p className="text-[11px] font-extrabold tracking-wider text-dim mb-1">INGREDIENTS</p>
+                <ul className="list-disc list-inside mb-3 font-semibold">
                   {s.ingredients.map((ing, j) => (
                     <li key={j}>
                       {ing.ingredient_name}
@@ -115,15 +123,10 @@ export default function SuggestionCards({ suggestions }: { suggestions: RecipeSu
                     </li>
                   ))}
                 </ul>
-                <p className="font-medium text-xs text-gray-500 mb-1">Instructions</p>
-                <p className="whitespace-pre-wrap text-gray-700">{s.instructions}</p>
+                <p className="text-[11px] font-extrabold tracking-wider text-dim mb-1">INSTRUCTIONS</p>
+                <p className="whitespace-pre-wrap font-medium">{s.instructions}</p>
                 {s.source_url && (
-                  <a
-                    href={s.source_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-pink-600 underline mt-2 inline-block"
-                  >
+                  <a href={s.source_url} target="_blank" rel="noreferrer" className="text-xs link mt-2 inline-block">
                     Source
                   </a>
                 )}

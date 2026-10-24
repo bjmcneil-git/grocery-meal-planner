@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Purchase, Recipe, WeeklyPlanEntry } from "@/lib/types";
 import { getPastDays } from "@/lib/week";
 import { shortenRecipeName } from "@/lib/recipeDisplay";
+import PageHeader from "../components/PageHeader";
 
 const DAYS_BACK = 14;
 
@@ -28,8 +29,8 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 text-sm px-3 py-2 rounded-full border ${
-        active ? "bg-pink-600 text-white border-pink-600" : "text-gray-600"
+      className={`flex-1 text-sm font-extrabold px-3 py-2 rounded-full transition-colors ${
+        active ? "bg-accent text-accent-ink shadow-lift" : "text-dim"
       }`}
     >
       {children}
@@ -73,10 +74,10 @@ export default function HistoryPage() {
   });
 
   return (
-    <main className="p-4">
-      <h1 className="text-xl font-bold mb-4">History</h1>
+    <main className="px-4 pt-3">
+      <PageHeader eyebrow="The past two weeks" title="History" />
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-1 mb-4 p-1 rounded-full bg-card shadow-soft">
         <TabButton active={tab === "meals"} onClick={() => setTab("meals")}>
           Meals
         </TabButton>
@@ -87,35 +88,35 @@ export default function HistoryPage() {
 
       {tab === "meals" &&
         (loadingMeals ? (
-          <p className="text-gray-500">Loading...</p>
+          <p className="font-semibold text-dim">Loading...</p>
         ) : plannedDays.length === 0 ? (
-          <p className="text-gray-500">No meals planned in the past two weeks.</p>
+          <p className="card p-5 text-center font-bold text-dim">No meals planned in the past two weeks.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {plannedDays.map(({ date, label, relative }) => {
               const entry = plan.find((p) => p.plan_date === date);
               const recipe = recipeById.get(entry!.recipe_id!)!;
               return (
-                <li key={date} className="border-b py-2">
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-sm font-medium">{label}</span>
-                    {relative && <span className="text-xs text-pink-600">{relative}</span>}
+                <li key={date}>
+                  <div className="flex items-center gap-2 mb-1.5 px-1">
+                    <span className="text-xs font-extrabold text-dim">{label}</span>
+                    {relative && <span className="chip bg-accent-soft text-accent-soft-ink">{relative}</span>}
                   </div>
                   <Link
                     href={`/recipes/${recipe.id}`}
-                    className="flex items-center gap-3 border rounded-lg p-2 min-w-0"
+                    className="card flex items-center gap-3 p-2.5 min-w-0"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={recipe.image_url ?? "/recipe-placeholder.jpg"}
                       alt={recipe.name}
-                      className="w-12 h-12 rounded object-cover shrink-0"
+                      className="w-14 h-14 rounded-2xl object-cover shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-tight truncate" title={recipe.name}>
+                      <p className="text-[15px] font-extrabold leading-tight truncate" title={recipe.name}>
                         {shortenRecipeName(recipe.name)}
                       </p>
-                      <p className="text-xs text-gray-500">Dinner</p>
+                      <p className="text-xs font-bold text-dim">Dinner</p>
                     </div>
                   </Link>
                 </li>
@@ -126,23 +127,23 @@ export default function HistoryPage() {
 
       {tab === "lists" &&
         (loadingLists ? (
-          <p className="text-gray-500">Loading...</p>
+          <p className="font-semibold text-dim">Loading...</p>
         ) : purchases.length === 0 ? (
-          <p className="text-gray-500">No completed lists yet.</p>
+          <p className="card p-5 text-center font-bold text-dim">No completed lists yet.</p>
         ) : (
           <ul className="space-y-2">
             {purchases.map((p) => (
-              <li key={p.id} className="border rounded-lg p-3">
+              <li key={p.id} className="card p-4">
                 <button
                   type="button"
                   onClick={() => setExpandedId((cur) => (cur === p.id ? null : p.id))}
                   className="w-full flex items-center justify-between text-left"
                 >
-                  <span className="text-sm font-medium">{formatHistoryDate(p.completed_at)}</span>
-                  <span className="text-xs text-gray-500">{p.items.length} items</span>
+                  <span className="text-[15px] font-extrabold">{formatHistoryDate(p.completed_at)}</span>
+                  <span className="chip bg-second-soft text-second-soft-ink">{p.items.length} items</span>
                 </button>
                 {expandedId === p.id && (
-                  <ul className="mt-2 text-sm text-gray-700 space-y-1">
+                  <ul className="mt-3 text-sm font-semibold space-y-1.5">
                     {p.items.map((it, idx) => (
                       <li key={idx}>
                         {it.name}

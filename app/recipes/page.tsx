@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { Recipe } from "@/lib/types";
 import { formatCookTime } from "@/lib/formatCookTime";
 import { getUpcomingDays } from "@/lib/week";
+import PageHeader from "../components/PageHeader";
 
 const DAYS_AHEAD = 14;
 const PINTEREST_SEARCH_URL = "https://www.pinterest.com/search/pins/?q=recipes";
@@ -13,7 +14,7 @@ const GOOGLE_SEARCH_URL = "https://www.google.com/search?q=recipes";
 
 function PinterestIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
       <path d="M12 0a12 12 0 0 0-4.37 23.17c-.06-.93-.11-2.36.02-3.38.12-.92.79-5.87.79-5.87s-.2-.4-.2-1c0-.93.54-1.63 1.21-1.63.57 0 .85.43.85.94 0 .57-.37 1.43-.55 2.23-.16.67.34 1.21 1 1.21 1.2 0 2.12-1.26 2.12-3.09 0-1.61-1.16-2.74-2.82-2.74-1.92 0-3.05 1.44-3.05 2.93 0 .58.22 1.2.5 1.54a.2.2 0 0 1 .05.19c-.05.22-.17.68-.2.78-.03.13-.1.16-.24.1-.9-.42-1.46-1.73-1.46-2.79 0-2.27 1.65-4.36 4.76-4.36 2.5 0 4.44 1.78 4.44 4.16 0 2.48-1.57 4.48-3.74 4.48-.73 0-1.42-.38-1.65-.83l-.45 1.72c-.16.63-.6 1.41-.9 1.89A12 12 0 1 0 12 0z" />
     </svg>
   );
@@ -21,7 +22,7 @@ function PinterestIcon() {
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 48 48" className="w-6 h-6" aria-hidden="true">
+    <svg viewBox="0 0 48 48" className="w-5 h-5" aria-hidden="true">
       <path
         fill="#FFC107"
         d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12 c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24 c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
@@ -100,62 +101,66 @@ function RecipesPageInner() {
   }, [recipes, query, cuisine]);
 
   return (
-    <main className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold">Recipes</h1>
-        <div className="flex items-center gap-3">
-          <a
-            href={GOOGLE_SEARCH_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Search Google for recipes"
-          >
-            <GoogleIcon />
-          </a>
-          <a
-            href={PINTEREST_SEARCH_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Search Pinterest for recipes"
-            className="text-[#E60023]"
-          >
-            <PinterestIcon />
-          </a>
-          <Link href="/recipes/new" className="text-pink-600">+ Add</Link>
-        </div>
-      </div>
+    <main className="px-4 pt-3">
+      <PageHeader eyebrow={recipes.length > 0 ? `${recipes.length} saved` : "\u00a0"} title="Recipes">
+        <a
+          href={GOOGLE_SEARCH_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Search Google for recipes"
+          className="w-10 h-10 rounded-full bg-card shadow-soft flex items-center justify-center"
+        >
+          <GoogleIcon />
+        </a>
+        <a
+          href={PINTEREST_SEARCH_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Search Pinterest for recipes"
+          className="w-10 h-10 rounded-full bg-card shadow-soft flex items-center justify-center text-[#E60023]"
+        >
+          <PinterestIcon />
+        </a>
+        <Link
+          href="/recipes/new"
+          aria-label="Add a recipe"
+          className="w-10 h-10 rounded-full bg-accent text-accent-ink shadow-lift flex items-center justify-center text-2xl font-bold leading-none"
+        >
+          +
+        </Link>
+      </PageHeader>
 
       {isPicking && (
-        <div className="mb-4 flex items-center justify-between gap-2 bg-pink-50 border border-pink-200 rounded-lg p-3">
-          <p className="text-sm font-medium text-pink-700">Choosing dinner for {forLabel}</p>
-          <Link href="/" className="text-xs text-pink-600 underline shrink-0">
+        <div className="mb-4 flex items-center justify-between gap-2 rounded-2xl bg-accent-soft p-3 pl-4">
+          <p className="text-sm font-extrabold text-accent-soft-ink">Choosing dinner for {forLabel}</p>
+          <Link href="/" className="chip py-1 bg-card text-accent shrink-0">
             Cancel
           </Link>
         </div>
       )}
 
       <input
-        className="w-full border rounded p-2 mb-3"
+        className="field shadow-soft border-transparent mb-3"
         placeholder="Search recipes..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex gap-2 mb-4 overflow-x-auto -mx-4 px-4 pb-1 [scrollbar-width:none]">
         {["All", ...cuisineOptions].map((c) => (
           <button
             key={c}
             type="button"
             onClick={() => setCuisine(c)}
-            className={`text-xs px-3 py-1 rounded-full border ${
-              cuisine === c ? "bg-pink-600 text-white border-pink-600" : "text-gray-600"
+            className={`chip py-1.5 px-3.5 text-[13px] shrink-0 ${
+              cuisine === c ? "bg-accent text-accent-ink" : "bg-card text-dim shadow-soft"
             }`}
           >
             {c}
           </button>
         ))}
       </div>
-      {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-      <div className="grid grid-cols-2 gap-3">
+      {error && <p className="text-sm font-bold text-danger mb-3">{error}</p>}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-4">
         {filtered.map((r) => (
           <div key={r.id}>
             <div className="relative">
@@ -165,7 +170,7 @@ function RecipesPageInner() {
                   <img
                     src={r.image_url ?? "/recipe-placeholder.jpg"}
                     alt={r.name}
-                    className="w-full aspect-[3/4] rounded object-cover"
+                    className="w-full aspect-[3/4] rounded-3xl object-cover shadow-soft"
                   />
                 </button>
               ) : (
@@ -174,12 +179,12 @@ function RecipesPageInner() {
                   <img
                     src={r.image_url ?? "/recipe-placeholder.jpg"}
                     alt={r.name}
-                    className="w-full aspect-[3/4] rounded object-cover"
+                    className="w-full aspect-[3/4] rounded-3xl object-cover shadow-soft"
                   />
                 </Link>
               )}
               {r.cook_time_minutes != null && (
-                <span className="absolute top-1.5 left-1.5 bg-white/90 text-gray-800 text-xs px-2 py-0.5 rounded-full">
+                <span className="absolute top-2 left-2 chip bg-card/90 text-ink">
                   {formatCookTime(r.cook_time_minutes)}
                 </span>
               )}
@@ -187,7 +192,7 @@ function RecipesPageInner() {
                 <>
                   <Link
                     href={`/recipes/${r.id}/edit`}
-                    className="absolute top-1.5 right-1.5 bg-white/90 text-gray-800 text-xs px-2 py-0.5 rounded-full"
+                    className="absolute top-2 right-2 chip bg-card/90 text-ink"
                   >
                     Edit
                   </Link>
@@ -195,7 +200,7 @@ function RecipesPageInner() {
                     type="button"
                     onClick={() => setPickingDayFor((cur) => (cur === r.id ? null : r.id))}
                     aria-label={`Add ${r.name} to a day`}
-                    className="absolute bottom-1.5 right-1.5 bg-pink-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-base leading-none"
+                    className="absolute bottom-2 right-2 bg-accent text-accent-ink w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold leading-none shadow-lift"
                   >
                     +
                   </button>
@@ -204,19 +209,19 @@ function RecipesPageInner() {
             </div>
             {isPicking ? (
               <button type="button" onClick={() => pickForDay(r.id)} className="block text-left w-full">
-                <p className="mt-1 text-sm font-medium leading-tight">{r.name}</p>
-                {r.cuisine && <p className="text-xs text-gray-500">{r.cuisine}</p>}
+                <p className="mt-2 text-sm font-extrabold leading-tight px-0.5">{r.name}</p>
+                {r.cuisine && <p className="text-xs font-bold text-dim px-0.5">{r.cuisine}</p>}
               </button>
             ) : (
               <Link href={`/recipes/${r.id}`} className="block">
-                <p className="mt-1 text-sm font-medium leading-tight">{r.name}</p>
-                {r.cuisine && <p className="text-xs text-gray-500">{r.cuisine}</p>}
+                <p className="mt-2 text-sm font-extrabold leading-tight px-0.5">{r.name}</p>
+                {r.cuisine && <p className="text-xs font-bold text-dim px-0.5">{r.cuisine}</p>}
               </Link>
             )}
             {!isPicking && pickingDayFor === r.id && (
               <select
                 autoFocus
-                className="mt-1 w-full border rounded text-xs p-1"
+                className="field mt-1.5 text-xs py-1.5"
                 defaultValue=""
                 onChange={(e) => {
                   const day = days.find((d) => d.date === e.target.value);
@@ -235,13 +240,13 @@ function RecipesPageInner() {
               </select>
             )}
             {!isPicking && justAdded?.recipeId === r.id && (
-              <p className="mt-1 text-xs text-green-600">Added to {justAdded.label}</p>
+              <p className="mt-1 chip bg-second-soft text-second-soft-ink">Added to {justAdded.label}</p>
             )}
           </div>
         ))}
       </div>
-      {recipes.length === 0 && <p className="text-gray-500">No recipes yet.</p>}
-      {recipes.length > 0 && filtered.length === 0 && <p className="text-gray-500">No matches.</p>}
+      {recipes.length === 0 && <p className="card p-5 text-center font-bold text-dim">No recipes yet.</p>}
+      {recipes.length > 0 && filtered.length === 0 && <p className="card p-5 text-center font-bold text-dim">No matches.</p>}
     </main>
   );
 }

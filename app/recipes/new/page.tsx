@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import CuisineSelect from "@/app/components/CuisineSelect";
 import CropPanel from "./CropPanel";
+import PageHeader from "@/app/components/PageHeader";
 
 interface IngredientRow {
   ingredient_name: string;
@@ -293,19 +294,26 @@ function NewRecipePageInner() {
   }
 
   return (
-    <main className="p-4">
-      <Link href="/recipes" className="text-pink-600 text-sm mb-2 inline-block">
-        &larr; Back to Recipes
-      </Link>
-      <h1 className="text-xl font-bold mb-4">Add Recipe</h1>
-      <div className="mb-4 p-3 border rounded bg-gray-50">
-        <div className="flex gap-3 mb-2 text-sm">
+    <main className="px-4 pt-3">
+      <PageHeader
+        eyebrow={
+          <Link href="/recipes" className="text-accent">
+            &larr; Back to Recipes
+          </Link>
+        }
+        title="Add Recipe"
+      />
+      <div className="card mb-4 p-4">
+        <p className="text-[11px] font-extrabold tracking-wider text-dim mb-2">IMPORT FROM</p>
+        <div className="flex gap-1 mb-3 p-1 rounded-full bg-line/70 text-sm">
           {(["url", "text", "screenshot"] as const).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={activeTab === tab ? "font-bold text-pink-600" : "text-gray-500"}
+              className={`flex-1 rounded-full py-1.5 font-extrabold transition-colors ${
+                activeTab === tab ? "bg-card text-accent shadow-soft" : "text-dim"
+              }`}
             >
               {tab === "url" ? "URL" : tab === "text" ? "Paste Text" : "Screenshot"}
             </button>
@@ -316,7 +324,7 @@ function NewRecipePageInner() {
           <div>
             <div className="flex gap-2">
               <input
-                className="flex-1 border rounded p-2"
+                className="field flex-1"
                 placeholder="https://example.com/recipe"
                 value={importUrl}
                 onChange={(e) => setImportUrl(e.target.value)}
@@ -325,19 +333,19 @@ function NewRecipePageInner() {
                 type="button"
                 onClick={() => handleImport()}
                 disabled={importing}
-                className="bg-gray-800 text-white rounded px-3 disabled:opacity-50"
+                className="btn-main"
               >
                 {importing ? "Importing..." : "Import"}
               </button>
             </div>
-            {importError && <p className="text-red-600 text-sm mt-1">{importError}</p>}
+            {importError && <p className="text-danger font-bold text-sm mt-1">{importError}</p>}
           </div>
         )}
 
         {activeTab === "text" && (
           <div>
             <textarea
-              className="w-full border rounded p-2 mb-2"
+              className="field mb-2"
               rows={5}
               placeholder="Paste the recipe text here"
               value={pasteText}
@@ -347,17 +355,17 @@ function NewRecipePageInner() {
               type="button"
               onClick={handleParseText}
               disabled={textImporting || !pasteText.trim()}
-              className="bg-gray-800 text-white rounded px-3 py-1 disabled:opacity-50"
+              className="btn-main"
             >
               {textImporting ? "Parsing..." : "Parse"}
             </button>
-            {textImportError && <p className="text-red-600 text-sm mt-1">{textImportError}</p>}
+            {textImportError && <p className="text-danger font-bold text-sm mt-1">{textImportError}</p>}
           </div>
         )}
 
         {activeTab === "screenshot" && (
           <div onPaste={handleScreenshotPaste}>
-            <label className="inline-block bg-gray-800 text-white rounded px-3 py-1 cursor-pointer mb-2">
+            <label className="btn-soft cursor-pointer mb-2">
               Choose screenshot(s)
               <input
                 type="file"
@@ -367,16 +375,16 @@ function NewRecipePageInner() {
                 className="hidden"
               />
             </label>
-            <p className="text-xs text-gray-500 mb-2">or paste a copied image</p>
+            <p className="text-xs font-semibold text-dim mb-2">or paste a copied image</p>
             {screenshotImages.length > 0 && (
               <div className="flex gap-2 flex-wrap mb-2">
                 {screenshotImages.map((src, i) => (
                   <div key={i} className="relative">
-                    <img src={src} alt="" className="w-16 h-16 object-cover rounded border" />
+                    <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl" />
                     <button
                       type="button"
                       onClick={() => removeScreenshotImage(i)}
-                      className="absolute -top-2 -right-2 bg-gray-800 text-white rounded-full w-5 h-5 text-xs"
+                      className="absolute -top-2 -right-2 bg-ink text-card rounded-full w-5 h-5 text-xs font-bold"
                     >
                       &times;
                     </button>
@@ -388,59 +396,60 @@ function NewRecipePageInner() {
               type="button"
               onClick={handleParseScreenshots}
               disabled={screenshotImporting || screenshotImages.length === 0}
-              className="bg-gray-800 text-white rounded px-3 py-1 disabled:opacity-50"
+              className="btn-main"
             >
               {screenshotImporting ? "Importing..." : "Import"}
             </button>
-            {screenshotError && <p className="text-red-600 text-sm mt-1">{screenshotError}</p>}
+            {screenshotError && <p className="text-danger font-bold text-sm mt-1">{screenshotError}</p>}
           </div>
         )}
       </div>
       {cropImages && (
         <CropPanel images={cropImages} onCropped={handleCropped} onSkip={handleSkipCrop} />
       )}
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="card p-4 space-y-3">
         <input
-          className="w-full border rounded p-2"
+          className="field"
           placeholder="Recipe name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <div className="flex gap-2">
-          <CuisineSelect value={cuisine} onChange={setCuisine} className="flex-1 border rounded p-2" />
+          <CuisineSelect value={cuisine} onChange={setCuisine} className="field flex-1" />
           <input
-            className="w-32 border rounded p-2"
+            className="field w-32"
             type="number"
             min="0"
-            placeholder="Cook time (min)"
+            placeholder="Cook time"
+            aria-label="Cook time (minutes)"
             value={cookTimeMinutes}
             onChange={(e) => setCookTimeMinutes(e.target.value)}
           />
         </div>
         <textarea
-          className="w-full border rounded p-2"
+          className="field"
           placeholder="Instructions"
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
         />
         <div>
-          <p className="font-medium mb-1">Ingredients</p>
+          <p className="text-base font-black mb-2">Ingredients</p>
           {ingredients.map((row, i) => (
             <div key={i} className="flex gap-2 mb-2">
               <input
-                className="flex-1 border rounded p-2"
+                className="field flex-1"
                 placeholder="Ingredient"
                 value={row.ingredient_name}
                 onChange={(e) => updateIngredient(i, "ingredient_name", e.target.value)}
               />
               <input
-                className="w-16 border rounded p-2"
+                className="field w-16 px-2"
                 placeholder="Qty"
                 value={row.quantity}
                 onChange={(e) => updateIngredient(i, "quantity", e.target.value)}
               />
               <input
-                className="w-16 border rounded p-2"
+                className="field w-16 px-2"
                 placeholder="Unit"
                 value={row.unit}
                 onChange={(e) => updateIngredient(i, "unit", e.target.value)}
@@ -449,7 +458,7 @@ function NewRecipePageInner() {
           ))}
           <button
             type="button"
-            className="text-pink-600 text-sm"
+            className="text-sm link"
             onClick={() =>
               setIngredients((rows) => [...rows, { ingredient_name: "", quantity: "", unit: "" }])
             }
@@ -457,8 +466,8 @@ function NewRecipePageInner() {
             + Add ingredient
           </button>
         </div>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button type="submit" className="w-full bg-pink-600 text-white rounded p-2">
+        {error && <p className="text-danger font-bold text-sm">{error}</p>}
+        <button type="submit" className="w-full btn-main">
           Save Recipe
         </button>
       </form>
