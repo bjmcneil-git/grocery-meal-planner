@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import PageHeader from "../components/PageHeader";
 import type { AisleDirectoryEntry } from "@/lib/types";
 
 export default function AisleOrderPage() {
@@ -77,66 +79,75 @@ export default function AisleOrderPage() {
     }
   }
 
-  if (loading) return <main className="p-4">Loading...</main>;
+  if (loading) return <main className="px-4 pt-6 font-semibold text-dim">Loading...</main>;
 
   return (
-    <main className="p-4 pb-20">
-      <h1 className="text-xl font-bold mb-4">Edit Aisle Order</h1>
+    <main className="px-4 pt-3 pb-20">
+      <PageHeader
+        eyebrow={
+          <Link href="/grocery-list" className="text-accent">
+            &larr; Back to Shopping List
+          </Link>
+        }
+        title="Aisle Order"
+      />
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && <p className="text-sm font-bold text-danger mb-4">{error}</p>}
 
-      <h2 className="text-sm font-bold text-gray-500 mb-2">Route</h2>
-      <ul className="divide-y mb-6">
+      <h2 className="text-base font-black mb-2 px-1">Your route</h2>
+      <ul className="card px-4 py-0.5 divide-y-2 divide-line/70 mb-6">
         {route.map((a, i) => (
-          <li key={a.id} className="flex items-center gap-2 py-2">
-            <span className="flex-1 text-sm">
-              {a.code} — {a.categories}
-            </span>
+          <li key={a.id} className="flex items-center gap-2 py-2.5">
+            <span className="chip rounded-lg bg-accent-soft text-accent-soft-ink shrink-0">{a.code}</span>
+            <span className="flex-1 min-w-0 text-sm font-semibold leading-snug">{a.categories}</span>
             <button
               onClick={() => moveUp(i)}
-              className="px-2 py-1 text-xs border rounded"
+              className="w-8 h-8 rounded-full bg-line text-ink font-black shrink-0"
               aria-label="Move up"
             >
               ↑
             </button>
             <button
               onClick={() => moveDown(i)}
-              className="px-2 py-1 text-xs border rounded"
+              className="w-8 h-8 rounded-full bg-line text-ink font-black shrink-0"
               aria-label="Move down"
             >
               ↓
             </button>
             <button
               onClick={() => removeFromRoute(a.id)}
-              className="px-2 py-1 text-xs border rounded text-red-600"
+              className="chip py-1.5 bg-danger/10 text-danger shrink-0"
             >
-              Remove from route
+              Remove
             </button>
           </li>
         ))}
       </ul>
 
-      <h2 className="text-sm font-bold text-gray-500 mb-2">Unordered</h2>
-      <ul className="divide-y mb-6">
-        {unordered.map((a) => (
-          <li key={a.id} className="flex items-center gap-2 py-2">
-            <span className="flex-1 text-sm">
-              {a.code} — {a.categories}
-            </span>
-            <button
-              onClick={() => addToRoute(a.id)}
-              className="px-2 py-1 text-xs border rounded"
-            >
-              Add to route
-            </button>
-          </li>
-        ))}
-      </ul>
+      <h2 className="text-base font-black mb-2 px-1">Not on the route</h2>
+      {unordered.length === 0 ? (
+        <p className="card p-4 mb-6 text-sm font-semibold text-dim">Every aisle is on your route.</p>
+      ) : (
+        <ul className="card px-4 py-0.5 divide-y-2 divide-line/70 mb-6">
+          {unordered.map((a) => (
+            <li key={a.id} className="flex items-center gap-2 py-2.5">
+              <span className="chip rounded-lg bg-accent-soft text-accent-soft-ink shrink-0">{a.code}</span>
+              <span className="flex-1 min-w-0 text-sm font-semibold leading-snug">{a.categories}</span>
+              <button
+                onClick={() => addToRoute(a.id)}
+                className="chip py-1.5 bg-accent text-accent-ink shrink-0"
+              >
+                Add to route
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <button
         onClick={handleSave}
         disabled={saving}
-        className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
+        className="w-full btn-main"
       >
         {saving ? "Saving..." : "Save"}
       </button>

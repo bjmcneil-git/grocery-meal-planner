@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { applyPalette, getSavedPalette } from "@/lib/theme";
 
 function CalendarIcon() {
   return (
@@ -70,19 +72,36 @@ const LINKS = [
 
 export default function NavBar() {
   const pathname = usePathname();
+
+  // The boot script in <head> can run before Next adds the theme-color meta;
+  // re-apply once mounted so the status bar matches the saved colors.
+  useEffect(() => {
+    applyPalette(getSavedPalette());
+  }, []);
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 flex justify-around gap-1 border-t bg-white px-1 py-1.5">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-20 max-w-md mx-auto flex justify-around gap-0.5 rounded-t-[22px] bg-card px-1.5 pt-2 shadow-[0_-4px_14px_rgba(20,30,40,0.06)]"
+      style={{ paddingBottom: "calc(0.6rem + env(safe-area-inset-bottom, 0px))" }}
+    >
       {LINKS.map(({ href, label, Icon }) => {
-        const active = pathname === href;
+        const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
         return (
           <Link
             key={href}
             href={href}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 px-1 text-center leading-tight text-[11px] ${
-              active ? "bg-pink-50 font-bold text-pink-600" : "text-gray-500"
+            aria-current={active ? "page" : undefined}
+            className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 text-center leading-tight text-[10.5px] font-extrabold ${
+              active ? "text-accent" : "text-dim/70"
             }`}
           >
-            <Icon />
+            <span
+              className={`flex items-center justify-center rounded-xl w-11 h-7 transition-colors ${
+                active ? "bg-accent-soft" : ""
+              }`}
+            >
+              <Icon />
+            </span>
             {label}
           </Link>
         );

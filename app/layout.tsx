@@ -1,6 +1,15 @@
 import "./globals.css";
+import { Nunito } from "next/font/google";
 import NavBar from "./components/NavBar";
 import FeedbackButton from "./components/FeedbackButton";
+import { PALETTE_BOOT_SCRIPT, PALETTES } from "@/lib/theme";
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800", "900"],
+  variable: "--font-nunito",
+  display: "swap",
+});
 
 export const metadata = {
   title: "Grocery & Meal Planner",
@@ -8,13 +17,18 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#db2777",
+  themeColor: PALETTES[0].swatch.grad1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="pb-36 max-w-md mx-auto">
+    // data-palette is set before paint by the boot script, so it differs from
+    // the server render on purpose.
+    <html lang="en" className={nunito.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: PALETTE_BOOT_SCRIPT }} />
+      </head>
+      <body className="font-sans pb-36 max-w-md mx-auto bg-app text-ink antialiased">
         {children}
         <FeedbackButton />
         <NavBar />

@@ -63,12 +63,12 @@ export default function FeedbackButton() {
 
   return (
     <>
-      <div className="fixed bottom-20 left-0 right-0 max-w-md mx-auto px-4 flex justify-end pointer-events-none z-30">
+      <div className="fixed bottom-24 left-0 right-0 max-w-md mx-auto px-4 flex justify-end pointer-events-none z-30">
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Leave a note about the app"
-          className="pointer-events-auto w-12 h-12 rounded-full bg-pink-600 text-white shadow-lg flex items-center justify-center"
+          className="pointer-events-auto w-12 h-12 rounded-full bg-accent text-accent-ink shadow-lift flex items-center justify-center"
         >
           <MessageIcon />
         </button>
@@ -82,31 +82,31 @@ export default function FeedbackButton() {
           <div
             role="dialog"
             aria-label="Leave a note"
-            className="w-full max-w-md bg-white text-black rounded-t-2xl p-4 pb-6"
+            className="w-full max-w-md bg-app rounded-t-[28px] px-4 pt-5 pb-8"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-bold">Leave a note</h2>
-              <button type="button" onClick={close} className="text-sm text-gray-500">
+              <h2 className="text-xl font-black">Leave a note</h2>
+              <button type="button" onClick={close} className="text-sm font-bold text-dim">
                 Close
               </button>
             </div>
 
             {sent ? (
               <div className="text-center py-4">
-                <p className="text-pink-700 mb-3">Thanks! Your note was saved.</p>
+                <p className="font-bold text-accent mb-3">Thanks! Your note was saved.</p>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setSent(false)}
-                    className="flex-1 px-3 py-2 rounded border text-sm"
+                    className="flex-1 btn-soft"
                   >
                     Add another
                   </button>
                   <button
                     type="button"
                     onClick={close}
-                    className="flex-1 px-3 py-2 rounded bg-pink-600 text-white text-sm"
+                    className="flex-1 btn-main"
                   >
                     Done
                   </button>
@@ -114,23 +114,23 @@ export default function FeedbackButton() {
               </div>
             ) : (
               <form onSubmit={send}>
-                <p className="text-sm text-gray-500 mb-2">
+                <p className="text-sm font-semibold text-dim mb-2">
                   Something you&rsquo;d like added, changed, or removed in the app?
                 </p>
                 <textarea
                   ref={textareaRef}
-                  className="w-full border rounded p-2 text-sm"
+                  className="field text-sm"
                   rows={4}
                   maxLength={2000}
                   placeholder="e.g. It would be nice if..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                 />
-                {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+                {error && <p className="text-sm font-bold text-danger mt-1">{error}</p>}
                 <button
                   type="submit"
                   disabled={sending || !message.trim()}
-                  className="w-full mt-2 px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
+                  className="w-full mt-2 btn-main"
                 >
                   {sending ? "Saving..." : "Send note"}
                 </button>
@@ -140,7 +140,7 @@ export default function FeedbackButton() {
             <Link
               href="/suggestions#notes"
               onClick={close}
-              className="block text-center text-xs text-pink-600 underline mt-3"
+              className="block text-center text-xs link mt-4"
             >
               See all notes
             </Link>

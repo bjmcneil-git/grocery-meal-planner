@@ -92,70 +92,70 @@ export default function DietDinners() {
   }
 
   return (
-    <section className="border border-pink-200 bg-pink-50 rounded-lg p-3 mb-6">
-      <h2 className="font-bold">High-Protein, Low-Calorie Dinners</h2>
-      <p className="text-xs text-gray-600 mb-3">
-        {DIET_SUGGESTION_COUNT} dinner ideas that fit your diet. Calories and protein are
-        estimates.
-      </p>
+    <section className="mb-8">
+      <div className="relative overflow-hidden rounded-3xl bg-hero text-white shadow-hero p-4">
+        <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-white/10" aria-hidden="true" />
+        <p className="relative text-[11px] font-extrabold tracking-wider opacity-85">HIGH-PROTEIN, LOW-CALORIE</p>
+        <h2 className="relative text-xl font-black leading-tight mt-0.5">
+          {DIET_SUGGESTION_COUNT} dinners for your diet
+        </h2>
+        <p className="relative text-xs font-bold opacity-90 mt-0.5">Calories and protein are estimates.</p>
 
-      <form onSubmit={handleAsk}>
-        <div className="flex gap-2 mb-2">
-          <label className="flex-1 text-xs text-gray-600">
-            Max calories / serving
-            <input
-              type="number"
-              inputMode="numeric"
-              min={100}
-              max={2000}
-              step={50}
-              className="w-full border rounded p-2 text-sm text-black bg-white mt-0.5"
-              value={goals.maxCaloriesPerServing || ""}
-              onChange={(e) => updateGoal("maxCaloriesPerServing", e.target.value)}
-            />
-          </label>
-          <label className="flex-1 text-xs text-gray-600">
-            Min protein (g) / serving
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={200}
-              step={5}
-              className="w-full border rounded p-2 text-sm text-black bg-white mt-0.5"
-              value={goals.minProteinGramsPerServing || ""}
-              onChange={(e) => updateGoal("minProteinGramsPerServing", e.target.value)}
-            />
-          </label>
-        </div>
-        <input
-          className="w-full border rounded p-2 text-sm bg-white mb-2"
-          placeholder="Anything you have or want? (optional) e.g. chicken, Mexican"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full px-3 py-2 rounded bg-pink-600 text-white text-sm disabled:opacity-50"
-        >
-          {loading && suggestions.length === 0
-            ? `Finding ${DIET_SUGGESTION_COUNT} dinners... (can take a minute)`
-            : `Get ${DIET_SUGGESTION_COUNT} dinner ideas`}
-        </button>
-      </form>
+        <form onSubmit={handleAsk} className="relative mt-3 flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="rounded-2xl bg-white/15 px-3 py-2 text-[10px] font-extrabold tracking-wider">
+              MAX CALORIES
+              <input
+                id="diet-max-calories"
+                type="number"
+                inputMode="numeric"
+                min={100}
+                max={2000}
+                step={50}
+                aria-label="Max calories / serving"
+                className="block w-full bg-transparent text-white text-lg font-black tracking-normal outline-none p-0 border-0"
+                value={goals.maxCaloriesPerServing || ""}
+                onChange={(e) => updateGoal("maxCaloriesPerServing", e.target.value)}
+              />
+            </label>
+            <label className="rounded-2xl bg-white/15 px-3 py-2 text-[10px] font-extrabold tracking-wider">
+              MIN PROTEIN (G)
+              <input
+                id="diet-min-protein"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={200}
+                step={5}
+                aria-label="Min protein (g) / serving"
+                className="block w-full bg-transparent text-white text-lg font-black tracking-normal outline-none p-0 border-0"
+                value={goals.minProteinGramsPerServing || ""}
+                onChange={(e) => updateGoal("minProteinGramsPerServing", e.target.value)}
+              />
+            </label>
+          </div>
+          <input
+            id="diet-query"
+            className="w-full rounded-2xl bg-white/15 text-white placeholder:text-white/70 px-3 py-2.5 text-sm font-semibold border-0 outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            placeholder="Anything you have or want? e.g. chicken"
+            aria-label="Anything you have or want? (optional)"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button type="submit" disabled={loading} className="btn bg-card text-accent w-full">
+            {loading && suggestions.length === 0
+              ? `Finding ${DIET_SUGGESTION_COUNT} dinners... (can take a minute)`
+              : `Get ${DIET_SUGGESTION_COUNT} dinner ideas`}
+          </button>
+        </form>
+      </div>
 
-      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+      {error && <p className="text-sm font-bold text-danger mt-3">{error}</p>}
 
       {suggestions.length > 0 && (
         <div className="mt-3">
           <SuggestionCards key={requestId} suggestions={suggestions} />
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={loading}
-            className="w-full mt-3 px-3 py-2 rounded border border-pink-600 text-pink-600 bg-white text-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
-          >
+          <button type="button" onClick={handleRefresh} disabled={loading} className="w-full mt-3 btn-soft">
             <RefreshIcon />
             {loading
               ? `Finding ${DIET_SUGGESTION_COUNT} new dinners...`

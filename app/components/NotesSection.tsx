@@ -68,35 +68,35 @@ export default function NotesSection() {
 
   return (
     <section id="notes" className="scroll-mt-4">
-      <h2 className="text-lg font-bold mb-1">
+      <h2 className="text-base font-black mb-0.5 px-1">
         Notes{!loading && notes.length > 0 ? ` (${notes.length})` : ""}
       </h2>
-      <p className="text-sm text-gray-500 mb-3">
-        Requests left with the pink message button for things to add, change, or remove in the
+      <p className="text-sm font-semibold text-dim mb-3 px-1">
+        Requests left with the round message button for things to add, change, or remove in the
         app.
       </p>
 
-      {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
-      {loading && <p className="text-sm text-gray-500">Loading...</p>}
+      {error && <p className="text-sm font-bold text-danger mb-2">{error}</p>}
+      {loading && <p className="text-sm font-semibold text-dim px-1">Loading...</p>}
       {!loading && notes.length === 0 && !error && (
-        <p className="text-sm text-gray-500">No notes yet.</p>
+        <p className="card p-4 text-sm font-semibold text-dim">No notes yet.</p>
       )}
 
       <ul className="space-y-2">
         {notes.map((note) => {
           const where = pageName(note.page);
           return (
-            <li key={note.id} className="border rounded-lg p-3">
-              <p className="text-sm whitespace-pre-wrap break-words">{note.message}</p>
+            <li key={note.id} className="card p-4">
+              <p className="text-[15px] font-semibold whitespace-pre-wrap break-words">{note.message}</p>
               <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-gray-400">
+                <span className="text-xs font-bold text-dim">
                   {formatNoteDate(note.created_at)}
                   {where && ` · from ${where}`}
                 </span>
                 <button
                   type="button"
                   onClick={() => removeNote(note)}
-                  className="text-xs text-pink-600 underline"
+                  className="chip py-1 bg-accent-soft text-accent-soft-ink"
                 >
                   Done
                 </button>
