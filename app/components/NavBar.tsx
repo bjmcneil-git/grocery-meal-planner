@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { applyPalette, getSavedPalette } from "@/lib/theme";
+import { TABS, type TabHref } from "@/lib/tabs";
 
 function CalendarIcon() {
   return (
@@ -62,13 +63,16 @@ function ClockIcon() {
   );
 }
 
-const LINKS = [
-  { href: "/", label: "Meal Planner", Icon: CalendarIcon },
-  { href: "/recipes", label: "Recipes", Icon: BookIcon },
-  { href: "/grocery-list", label: "Shopping List", Icon: ClipboardIcon },
-  { href: "/suggestions", label: "Suggestions", Icon: LightbulbIcon },
-  { href: "/history", label: "History", Icon: ClockIcon },
-];
+const ICONS: Record<TabHref, () => JSX.Element> = {
+  "/": CalendarIcon,
+  "/recipes": BookIcon,
+  "/grocery-list": ClipboardIcon,
+  "/suggestions": LightbulbIcon,
+  "/history": ClockIcon,
+};
+
+// Same order as swiping (lib/tabs.ts).
+const LINKS = TABS.map((t) => ({ ...t, Icon: ICONS[t.href] }));
 
 export default function NavBar() {
   const pathname = usePathname();
