@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { Purchase, Recipe, WeeklyPlanEntry } from "@/lib/types";
+import type { GroceryListItem, Purchase, PurchaseItem, Recipe, WeeklyPlanEntry } from "@/lib/types";
 import { getPastDays } from "@/lib/week";
 import { shortenRecipeName } from "@/lib/recipeDisplay";
+import { normalizeItemName } from "@/lib/aisleMatcher";
 import PageHeader from "../components/PageHeader";
 
 const DAYS_BACK = 14;
@@ -49,6 +50,11 @@ export default function HistoryPage() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loadingLists, setLoadingLists] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Names already on the current shopping list, so past items can show
+  // "On list" instead of offering to add them again.
+  const [onList, setOnList] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState<Set<string>>(new Set());
+  const [addError, setAddError] = useState<string | null>(null);
 
   const recipeById = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes]);
 
@@ -62,11 +68,49 @@ export default function HistoryPage() {
   }, [days]);
 
   useEffect(() => {
-    fetch("/api/purchases")
-      .then((r) => r.json())
-      .then(setPurchases)
-      .finally(() => setLoadingLists(false));
+    Promise.all([
+      fetch("/api/purchases")
+        .then((r) => r.json())
+        .then((data: Purchase[]) => {
+          setPurchases(data);
+          // Open the newest list so reordering is one tap away.
+          if (data.length > 0) setExpandedId(data[0].id);
+        }),
+      fetch("/api/grocery-list")
+        .then((r) => r.json())
+        .then((items: GroceryListItem[]) => setOnList(new Set(items.map((i) => normalizeItemName(i.item_name)))))
+        .catch(() => {}),
+    ]).finally(() => setLoadingLists(false));
   }, []);
+
+  function isOnList(item: PurchaseItem): boolean {
+    return onList.has(normalizeItemName(item.name));
+  }
+
+  // Puts past items back on the shopping list. A quantity of 1 was stored
+  // for items that had none, so only real quantities are sent back.
+  async function addToList(items: PurchaseItem[]) {
+    const toAdd = items.filter((it) => !isOnList(it) && !adding.has(normalizeItemName(it.name)));
+    if (toAdd.length === 0) return;
+    const keys = toAdd.map((it) => normalizeItemName(it.name));
+    setAdding((prev) => new Set([...Array.from(prev), ...keys]));
+    setAddError(null);
+    const results = await Promise.all(
+      toAdd.map((it) =>
+        fetch("/api/grocery-list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item_name: it.name, quantity: it.quantity > 1 ? it.quantity : null }),
+        })
+          .then((res) => res.ok)
+          .catch(() => false)
+      )
+    );
+    const added = keys.filter((_, i) => results[i]);
+    setOnList((prev) => new Set([...Array.from(prev), ...added]));
+    setAdding((prev) => new Set(Array.from(prev).filter((k) => !keys.includes(k))));
+    if (added.length < keys.length) setAddError("Some items couldn't be added. Please try again.");
+  }
 
   const plannedDays = days.filter((d) => {
     const entry = plan.find((p) => p.plan_date === d.date);
@@ -132,6 +176,7 @@ export default function HistoryPage() {
           <p className="card p-5 text-center font-bold text-dim">No completed lists yet.</p>
         ) : (
           <ul className="space-y-2">
+            {addError && <p className="text-sm font-bold text-danger px-1">{addError}</p>}
             {purchases.map((p) => (
               <li key={p.id} className="card p-4">
                 <button
@@ -140,17 +185,57 @@ export default function HistoryPage() {
                   className="w-full flex items-center justify-between text-left"
                 >
                   <span className="text-[15px] font-extrabold">{formatHistoryDate(p.completed_at)}</span>
-                  <span className="chip bg-second-soft text-second-soft-ink">{p.items.length} items</span>
+                  <span className="chip bg-second-soft text-second-soft-ink">
+                    {p.items.length} item{p.items.length === 1 ? "" : "s"}
+                  </span>
                 </button>
                 {expandedId === p.id && (
-                  <ul className="mt-3 text-sm font-semibold space-y-1.5">
-                    {p.items.map((it, idx) => (
-                      <li key={idx}>
-                        {it.name}
-                        {it.quantity > 1 ? ` × ${it.quantity}` : ""}
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="mt-2 divide-y-2 divide-line/70">
+                      {p.items.map((it, idx) => {
+                        const key = normalizeItemName(it.name);
+                        return (
+                          <li key={idx} className="flex items-center gap-2 py-2.5">
+                            <span className="flex-1 min-w-0 text-sm font-bold leading-snug">
+                              {it.name}
+                              {it.quantity > 1 && <span className="text-dim"> ×{it.quantity}</span>}
+                            </span>
+                            {isOnList(it) ? (
+                              <span className="chip bg-second-soft text-second-soft-ink shrink-0">On list &#10003;</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => addToList([it])}
+                                disabled={adding.has(key)}
+                                aria-label={`Add ${it.name} to your list`}
+                                className="chip py-1.5 px-3 bg-accent text-accent-ink shrink-0 disabled:opacity-50"
+                              >
+                                {adding.has(key) ? "Adding..." : "+ Add"}
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {(() => {
+                      const remaining = p.items.filter((it) => !isOnList(it));
+                      const busy = remaining.some((it) => adding.has(normalizeItemName(it.name)));
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => addToList(remaining)}
+                          disabled={remaining.length === 0 || busy}
+                          className="w-full mt-2 btn-soft disabled:opacity-60"
+                        >
+                          {remaining.length === 0
+                            ? "All on your list"
+                            : busy
+                              ? "Adding..."
+                              : `Add all to list (${remaining.length})`}
+                        </button>
+                      );
+                    })()}
+                  </>
                 )}
               </li>
             ))}
