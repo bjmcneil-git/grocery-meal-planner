@@ -10,6 +10,14 @@ export interface PatchNote {
 
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: "2026-10-30",
+    title: "Reorder from History",
+    changes: [
+      "On History → Lists, tap + Add to put any item from a past shopping list back on your list.",
+      "Or tap Add all to list to bring back everything you don't already have on it.",
+    ],
+  },
+  {
     date: "2026-10-24",
     title: "Swipe between tabs",
     changes: [
