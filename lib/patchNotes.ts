@@ -10,6 +10,14 @@ export interface PatchNote {
 
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: "2026-10-31",
+    title: "A new app icon",
+    changes: [
+      "The app icon is now a pink grocery bag full of food.",
+      "If your phone still shows the old icon, remove the app from your home screen and add it again.",
+    ],
+  },
+  {
     date: "2026-10-30",
     title: "Reorder from History",
     changes: [
