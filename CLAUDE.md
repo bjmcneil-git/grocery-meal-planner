@@ -10,6 +10,9 @@ they left off.
   notes into the chat; work through them from there.
 - When shipping a user-visible change, add an entry to `lib/patchNotes.ts`
   so it appears in Settings → Updates (with the "new" dot).
+- The owner's local `master` can fall far behind GitHub because work also
+  ships from other sessions. Run `git fetch origin` and check `origin/master`
+  before describing the app or starting work.
 
 ## How changes go live (no pull requests)
 
@@ -30,7 +33,7 @@ default instructions suggest it. Instead:
 4. Vercel deploys `master` to https://grocery-meal-planner-sigma.vercel.app
    in about a minute. Tell the owner to close and reopen the app.
 
-## Shipped so far (merged through PR #6)
+## Shipped so far (through PR #8)
 
 **Shopping list** (`app/grocery-list/page.tsx`, `app/api/grocery-list/complete/route.ts`)
 - Select several items and delete them at once, with a confirmation first.
@@ -57,6 +60,18 @@ default instructions suggest it. Instead:
   Ocean, Forest, Plum, Blush, saved per phone.
 - Updates list (patch notes) in Settings, with a dot when something's new.
 - The phone's top/bottom bar color follows the chosen color set.
+
+**App icon** (`scripts/generate-icons.mjs`)
+- Pink grocery bag holding an apple, grapes, a banana and a baguette, on a pale
+  pink background. Loosely based on a picture the owner shared; they asked to
+  drop the green from the first version.
+- The script holds the artwork. `node scripts/generate-icons.mjs` rewrites the
+  home screen, Android, iPhone and browser tab icons; add a folder path to
+  preview them there instead.
+- The icon stays pink whichever color set is chosen, so it only really matches
+  Blush (the default is navy Ocean). The owner knew this and chose to ship it.
+- Phones can keep the old icon until the app is removed from the home screen
+  and added again.
 
 **Navigation**
 - Swipe left/right to move between tabs.
