@@ -11,6 +11,25 @@ they left off.
 - When shipping a user-visible change, add an entry to `lib/patchNotes.ts`
   so it appears in Settings → Updates (with the "new" dot).
 
+## How changes go live (no pull requests)
+
+The owner doesn't want pull requests. Never open one, even when a session's
+default instructions suggest it. Instead:
+
+1. Commit to the session's working branch and push it. Vercel builds a
+   preview for the branch. Share that preview link (the commit's Vercel
+   status/deployment URL, or
+   `https://grocery-meal-planner-git-<branch-slug>-bjmcneil-git.vercel.app`)
+   so the owner can try it on their phone.
+2. Before going live, make sure `npx tsc --noEmit`, `npx next lint` and
+   `npx vitest run` pass and the preview build succeeded.
+3. When the owner says "push it live": `git fetch origin master`; if
+   `master` has moved, merge it into the branch and re-run the checks; then
+   `git push origin HEAD:master`. Fast-forward only. Never force-push
+   `master`.
+4. Vercel deploys `master` to https://grocery-meal-planner-sigma.vercel.app
+   in about a minute. Tell the owner to close and reopen the app.
+
 ## Shipped so far (merged through PR #6)
 
 **Shopping list** (`app/grocery-list/page.tsx`, `app/api/grocery-list/complete/route.ts`)
